@@ -1,0 +1,398 @@
+"use client";
+
+import { useState, useEffect, useRef, useCallback } from "react";
+import { PromptBar } from "./PromptBar";
+import { MarkdownRenderer } from "./MarkdownRenderer";
+import { Settings2, Copy, Check, CornerDownLeft, Zap } from "lucide-react";
+
+interface PlaygroundMainProps {
+  isSettingsOpen: boolean;
+  onOpenSettings: () => void;
+}
+
+interface PlaygroundMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+interface StreamMetrics {
+  tokenCount: number;
+  tokensPerSecond: number;
+  avgTps: number;
+  startTime: number;
+  isStreaming: boolean;
+  tpsSamples: number[];
+}
+
+const API_URL = "/api/chat";
+
+export function PlaygroundMain({ isSettingsOpen, onOpenSettings }: PlaygroundMainProps) {
+  const [messages, setMessages] = useState<PlaygroundMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [metrics, setMetrics] = useState<StreamMetrics>({
+    tokenCount: 0,
+    tokensPerSecond: 0,
+    avgTps: 0,
+    startTime: 0,
+    isStreaming: false,
+    tpsSamples: [],
+  });
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const tokenCountRef = useRef(0);
+  const startTimeRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const isUserScrolledUpRef = useRef(false);
+
+  const isEmpty = messages.length === 0;
+
+  // Track if user has scrolled up (away from bottom)
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    isUserScrolledUpRef.current = distanceFromBottom > 80;
+  }, []);
+
+  // Only auto-scroll if user is near the bottom
+  const scrollToBottom = useCallback(() => {
+    if (isUserScrolledUpRef.current) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  const handleCopy = useCallback((content: string, index: number) => {
+    navigator.clipboard.writeText(content);
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
+  }, []);
+
+  const handleReply = useCallback((content: string) => {
+    const firstLine = content.split("\n")[0].slice(0, 100);
+    setInput(`> ${firstLine}\n\n`);
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!input.trim()) return;
+
+    const userMessage: PlaygroundMessage = { role: "user", content: input };
+    setMessages((prev) => [...prev, userMessage, { role: "assistant", content: "" }]);
+    setInput("");
+    setIsLoading(true);
+    isUserScrolledUpRef.current = false; // Reset on new message
+
+    // Reset metrics
+    tokenCountRef.current = 0;
+    startTimeRef.current = performance.now();
+    setMetrics({ tokenCount: 0, tokensPerSecond: 0, avgTps: 0, startTime: performance.now(), isStreaming: true, tpsSamples: [] });
+
+    try {
+      const apiKey = (process.env.NEXT_PUBLIC_SARVAM_API_KEY ?? "").trim();
+      if (!apiKey) {
+        throw new Error("No API key configured");
+      }
+
+      abortControllerRef.current = new AbortController();
+
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "API-Subscription-Key": apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "sarvam-105b",
+          messages: [...messages, userMessage],
+          temperature: 0.8,
+          top_p: 1,
+          max_tokens: 4096,
+          stream: true,
+          reasoning_effort: "medium",
+        }),
+        signal: abortControllerRef.current.signal,
+      });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data:")) continue;
+          const data = trimmed.slice(5).trim();
+          if (data === "[DONE]") break;
+
+          try {
+            const chunk = JSON.parse(data);
+            const content = chunk.choices[0]?.delta?.content;
+            if (!content) continue;
+
+            const newTokens = content.split(/[\s]+/).filter(Boolean).length || 1;
+            tokenCountRef.current += newTokens;
+            const elapsed = (performance.now() - startTimeRef.current) / 1000;
+            const tps = elapsed > 0 ? tokenCountRef.current / elapsed : 0;
+
+            setMetrics((prev) => {
+              const samples = [...prev.tpsSamples, tps].slice(-20); // keep last 20
+              const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
+              return {
+                tokenCount: tokenCountRef.current,
+                tokensPerSecond: Math.round(tps * 10) / 10,
+                avgTps: Math.round(avg * 10) / 10,
+                startTime: startTimeRef.current,
+                isStreaming: true,
+                tpsSamples: samples,
+              };
+            });
+
+            setMessages((prev) => {
+              const lastIdx = prev.length - 1;
+              const last = prev[lastIdx];
+              if (last.role !== "assistant") return prev;
+              return [...prev.slice(0, lastIdx), { ...last, content: last.content + content }];
+            });
+          } catch {}
+        }
+      }
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        // User stopped — keep content
+      } else {
+        setMessages((prev) => {
+          const lastIdx = prev.length - 1;
+          const last = prev[lastIdx];
+          if (last.role !== "assistant") return prev;
+          return [...prev.slice(0, lastIdx), { ...last, content: `Error: ${error.message}` }];
+        });
+      }
+    } finally {
+      abortControllerRef.current = null;
+      setIsLoading(false);
+      setMetrics((prev) => ({ ...prev, isStreaming: false }));
+    }
+  };
+
+  const handleStop = useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
+
+  const streamingIndex = isLoading ? messages.length - 1 : -1;
+
+  return (
+    <div className="flex-1 relative flex flex-col bg-white overflow-hidden">
+      {/* Settings Toggle */}
+      {!isSettingsOpen && (
+        <div className="absolute top-4 right-4 z-20">
+          <button
+            onClick={onOpenSettings}
+            className="p-2 bg-white border border-gray-200 text-gray-600 hover:text-gray-900 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+            title="Open settings"
+          >
+            <Settings2 size={18} />
+          </button>
+        </div>
+      )}
+
+      {/* Messages */}
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 w-full overflow-y-auto pb-[240px]"
+      >
+        <div
+          className={`max-w-3xl w-full mx-auto px-6 pt-10 transition-opacity duration-300 ${
+            isEmpty ? "opacity-0 pointer-events-none" : "opacity-100"
+          }`}
+        >
+          <div className="space-y-6">
+            {messages.map((msg, i) => {
+              const isStreamingThis = i === streamingIndex && msg.role === "assistant";
+              const isAssistant = msg.role === "assistant";
+
+              return (
+                <div key={i} className={`group flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className="flex flex-col max-w-[85%]">
+                    {/* Message bubble */}
+                    <div
+                      className={`relative text-[15px] ${
+                        msg.role === "user"
+                          ? "bg-[#F4F4F4] text-gray-900 rounded-[1.25rem] rounded-br-md px-4 py-3"
+                          : "text-gray-800"
+                      }`}
+                    >
+                      {msg.content ? (
+                        <div className="relative">
+                          <MarkdownRenderer content={msg.content} />
+                          {/* Streaming blur edge effect */}
+                          {isStreamingThis && (
+                            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none" />
+                          )}
+                        </div>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 py-1">
+                          <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
+                          <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
+                          <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Action buttons & Metrics */}
+                    {msg.content && isAssistant && (
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-1.5 justify-start">
+                        {/* Always visible action buttons */}
+                        {!isStreamingThis && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleCopy(msg.content, i)}
+                              className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                              title="Copy"
+                            >
+                              {copiedIndex === i ? (
+                                <>
+                                  <Check size={13} />
+                                  <span>Copied</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy size={13} />
+                                  <span>Copy</span>
+                                </>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleReply(msg.content)}
+                              className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                              title="Reply"
+                            >
+                              <CornerDownLeft size={13} />
+                              <span>Reply</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Streaming metrics — visible while streaming, hover-only when complete */}
+                        {((isStreamingThis) || (i === messages.length - 1 && metrics.tokenCount > 0)) && (
+                          <div className={`flex items-center gap-3 transition-opacity duration-300 ${isStreamingThis ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                            <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                              <Zap size={12} className="text-amber-400" />
+                              <span className="tabular-nums font-mono">{metrics.tokenCount}</span>
+                              <span>tokens</span>
+                            </div>
+                            <div className="w-px h-3 bg-gray-200" />
+                            <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                              <span className="tabular-nums font-mono">{metrics.tokensPerSecond}</span>
+                              <span>tok/s</span>
+                            </div>
+                            <div className="w-px h-3 bg-gray-200" />
+                            <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                              <span>avg</span>
+                              <span className="tabular-nums font-mono">{metrics.avgTps}</span>
+                              <span>tok/s</span>
+                            </div>
+                            <div className="w-px h-3 bg-gray-200" />
+                            <div className="flex items-center gap-1">
+                              {metrics.isStreaming ? (
+                                <>
+                                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                                  <span className="text-xs text-gray-400">streaming</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Check size={12} className="text-emerald-500" />
+                                  <span className="text-xs text-gray-400">complete</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+
+      {/* Composer — uses transform for smooth center-to-bottom animation */}
+      <div
+        className="absolute inset-0 pointer-events-none flex items-start justify-center"
+      >
+        <div
+          className="pointer-events-auto flex flex-col items-center w-full px-6 sm:px-8 max-w-3xl"
+          style={{
+            position: "absolute",
+            left: "50%",
+            transform: isEmpty
+              ? "translate(-50%, -50%)"
+              : "translate(-50%, 0)",
+            top: isEmpty ? "50%" : undefined,
+            bottom: isEmpty ? undefined : "24px",
+            transition: "all 500ms cubic-bezier(0.25, 0.1, 0.25, 1)",
+          }}
+        >
+          {/* Title */}
+          <h1
+            className="text-[2rem] sm:text-[2.25rem] font-medium text-gray-900 tracking-tight text-center overflow-hidden"
+            style={{
+              opacity: isEmpty ? 1 : 0,
+              maxHeight: isEmpty ? "80px" : "0px",
+              marginBottom: isEmpty ? "32px" : "0px",
+              transform: isEmpty ? "translateY(0)" : "translateY(-16px)",
+              transition: "all 400ms ease-out",
+              pointerEvents: isEmpty ? "auto" : "none",
+            }}
+          >
+            Explore Sarvam models
+          </h1>
+
+          {/* Prompt Bar */}
+          <div className="w-full">
+            <PromptBar
+              value={input}
+              onChange={setInput}
+              onSend={handleSubmit}
+              onStop={handleStop}
+              disabled={isLoading}
+              isStreaming={isLoading}
+              variant={isEmpty ? "empty" : "thread"}
+            />
+          </div>
+
+          {/* Hint */}
+          <p
+            className="text-xs text-gray-400 text-center overflow-hidden"
+            style={{
+              opacity: isEmpty ? 1 : 0,
+              maxHeight: isEmpty ? "30px" : "0px",
+              marginTop: isEmpty ? "16px" : "0px",
+              transition: "all 300ms ease-out",
+              pointerEvents: isEmpty ? "auto" : "none",
+            }}
+          >
+            sarvam-105b · Press Enter to send
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
