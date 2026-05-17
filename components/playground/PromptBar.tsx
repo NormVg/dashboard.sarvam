@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import { ArrowUp, Square, Mic } from "lucide-react";
+import { ArrowUp, Square, Mic, Loader2 } from "lucide-react";
+import { useMicrophone } from "../../hooks/useMicrophone";
 
 type Variant = "empty" | "thread";
 
@@ -30,6 +31,41 @@ export function PromptBar({
 }: PromptBarProps) {
   const sendDisabled = (disabled && !isStreaming) || !value.trim();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const { isRecording, isProcessing, setIsProcessing, startRecording, stopRecording } = useMicrophone();
+
+  const handleMicClick = async () => {
+    if (isRecording) {
+      setIsProcessing(true);
+      const audioBlob = await stopRecording();
+      if (audioBlob) {
+        try {
+          const formData = new FormData();
+          formData.append("file", audioBlob, "audio.webm");
+
+          const response = await fetch("/api/speech", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!response.ok) throw new Error("STT failed");
+
+          const data = await response.json();
+          // Sarvam REST API usually returns { transcript: "..." }
+          if (data.transcript) {
+            onChange(value ? `${value} ${data.transcript}` : data.transcript);
+          } else if (data.text) {
+            onChange(value ? `${value} ${data.text}` : data.text);
+          }
+        } catch (error) {
+          console.error("Transcription error:", error);
+        }
+      }
+      setIsProcessing(false);
+    } else {
+      startRecording();
+    }
+  };
 
   // Auto-resize textarea with smooth height animation
   useEffect(() => {
@@ -85,10 +121,20 @@ export function PromptBar({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
-            title="Voice input"
+            onClick={handleMicClick}
+            disabled={isProcessing}
+            className={`p-2 rounded-full transition-colors ${
+              isRecording 
+                ? "bg-red-50 text-red-500 hover:bg-red-100 animate-pulse" 
+                : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+            }`}
+            title={isRecording ? "Stop recording" : "Voice input"}
           >
-            <Mic size={18} />
+            {isProcessing ? (
+              <Loader2 size={18} className="animate-spin text-gray-400" />
+            ) : (
+              <Mic size={18} />
+            )}
           </button>
         </div>
 
