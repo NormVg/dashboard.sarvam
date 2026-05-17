@@ -154,7 +154,7 @@ export function PromptBar({
       >
         <div className="flex items-start gap-2 px-4 pt-3 pb-1">
           <div className="w-0.5 self-stretch bg-gray-300 rounded-full flex-shrink-0" />
-          <p className="flex-1 text-[12px] text-gray-400 leading-snug line-clamp-2 min-w-0">
+          <p className="flex-1 text-[12px] text-gray-500 leading-snug line-clamp-2 min-w-0">
             {replyTo}
           </p>
           <button
@@ -203,7 +203,8 @@ export function PromptBar({
           }
         }}
         rows={1}
-        className={`w-full bg-transparent border-none outline-none resize-none focus:outline-none focus:ring-0 text-gray-800 placeholder:text-gray-400 leading-6 transition-colors duration-300 ${
+        aria-label="Message input"
+        className={`w-full bg-transparent border-none outline-none resize-none focus:outline-none focus:ring-0 text-gray-800 placeholder:text-gray-500 leading-6 transition-colors duration-300 ${
           variant === "empty"
             ? "px-5 py-4 text-[17px]"
             : "px-5 py-3 text-[15px]"
@@ -223,13 +224,14 @@ export function PromptBar({
             className={`p-2 rounded-full transition-colors ${
               isRecording
                 ? "bg-red-50 text-red-500 hover:bg-red-100 animate-pulse"
-                : "text-gray-400 hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200"
+                : "text-gray-500 hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200"
             }`}
             title={isRecording ? "Stop recording" : "Voice input"}
             aria-label={isRecording ? "Stop recording" : "Voice input"}
+            aria-pressed={isRecording}
           >
             {isProcessing ? (
-              <Loader2 size={18} className="animate-spin text-gray-400" />
+              <Loader2 size={18} className="animate-spin text-gray-500" />
             ) : (
               <Mic size={18} />
             )}
@@ -244,7 +246,7 @@ export function PromptBar({
                   playUISound("pop", "aero");
                   fileInputRef.current?.click();
                 }}
-                className="p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-200"
+                className="p-2 rounded-full text-gray-500 hover:text-gray-600 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-200"
                 title="Attach image"
                 aria-label="Attach image"
               >

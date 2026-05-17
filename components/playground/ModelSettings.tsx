@@ -218,9 +218,11 @@ chatCompletionsStream();`;
 
           {/* Provider Selection */}
           <div>
-            <label className="text-[14px] font-medium text-gray-700 block mb-2">Provider</label>
-            <div className="flex bg-gray-100 p-1 rounded-xl">
+            <label id="provider-label" className="text-[14px] font-medium text-gray-700 block mb-2">Provider</label>
+            <div className="flex bg-gray-100 p-1 rounded-xl" role="radiogroup" aria-labelledby="provider-label">
               <button
+                role="radio"
+                aria-checked={config.provider === "sarvam"}
                 onClick={() => {
                   playUISound("pop", "aero");
                   onChange({ ...config, provider: "sarvam", model: "sarvam-105b" });
@@ -233,6 +235,8 @@ chatCompletionsStream();`;
                 Sarvam AI
               </button>
               <button
+                role="radio"
+                aria-checked={config.provider === "ollama"}
                 onClick={() => {
                   playUISound("pop", "aero");
                   onChange({ ...config, provider: "ollama", model: ollamaModels[0] || "" });
@@ -247,7 +251,7 @@ chatCompletionsStream();`;
             </div>
             {config.provider === "ollama" && (
               <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3 flex flex-col gap-2">
-                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Run Ollama with CORS enabled</p>
+                <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Run Ollama with CORS enabled</p>
                 <div className="flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
                   <code className="text-[12px] font-mono text-gray-700 select-all leading-none">
                     OLLAMA_ORIGINS="*" ollama serve
@@ -276,9 +280,10 @@ chatCompletionsStream();`;
           {config.provider === "ollama" && (
             <>
               <div>
-                <label className="text-[14px] font-medium text-gray-700 block mb-2">Ollama URL</label>
+                <label htmlFor="ollamaUrl" className="text-[14px] font-medium text-gray-700 block mb-2">Ollama URL</label>
                 <div className="flex items-center gap-2 w-full">
                   <input
+                    id="ollamaUrl"
                     type="text"
                     value={config.ollamaUrl ?? "http://localhost:11434"}
                     onChange={(e) => onChange({ ...config, ollamaUrl: e.target.value })}
@@ -306,10 +311,11 @@ chatCompletionsStream();`;
 
           {/* Model Selection */}
           <div>
-            <label className="text-[14px] font-medium text-gray-700 block mb-2">Model</label>
+            <label htmlFor="modelSelect" className="text-[14px] font-medium text-gray-700 block mb-2">Model</label>
             <div className="relative">
               {config.provider === "sarvam" ? (
                 <select
+                  id="modelSelect"
                   value={config.model}
                   onChange={(e) => {
                     playUISound("pop", "aero");
@@ -323,6 +329,7 @@ chatCompletionsStream();`;
                 </select>
               ) : (
                 <select
+                  id="modelSelect"
                   value={config.model}
                   onChange={(e) => {
                     playUISound("pop", "aero");
@@ -340,7 +347,7 @@ chatCompletionsStream();`;
               <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
             {config.provider === "sarvam" && (
-              <p className="text-xs text-gray-400 mt-2">
+              <p className="text-xs text-gray-500 mt-2">
                 {config.model === "sarvam-105b"
                   ? "Most intelligent model, best for complex logic."
                   : "Faster model, great for standard queries."}
@@ -352,14 +359,15 @@ chatCompletionsStream();`;
 
           {/* System Instructions */}
           <div>
-            <label className="text-[14px] font-medium text-gray-700 block mb-2">System instructions</label>
+            <label htmlFor="systemInstruction" className="text-[14px] font-medium text-gray-700 block mb-2">System instructions</label>
             <textarea
+              id="systemInstruction"
               value={config.systemInstruction}
               onChange={(e) => onChange({ ...config, systemInstruction: e.target.value })}
               placeholder="You are a helpful assistant..."
               className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 shadow-sm focus:outline-none focus:ring-1 focus:ring-gray-300 resize-none h-24"
             />
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-gray-500 mt-2">
               Optional tone and style instructions for the model.
             </p>
           </div>
@@ -369,12 +377,13 @@ chatCompletionsStream();`;
           {/* Temperature */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className="text-[14px] font-medium text-gray-700">Temperature</label>
-              <div className="w-12 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-lg text-sm text-gray-900 shadow-sm">
+              <label htmlFor="temperatureInput" className="text-[14px] font-medium text-gray-700">Temperature</label>
+              <div className="w-12 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-lg text-sm text-gray-900 shadow-sm" aria-hidden="true">
                 {config.temperature}
               </div>
             </div>
             <input
+              id="temperatureInput"
               type="range"
               min="0"
               max="2"
@@ -388,12 +397,13 @@ chatCompletionsStream();`;
           {/* Top P */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className="text-[14px] font-medium text-gray-700">Top P</label>
-              <div className="w-12 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-lg text-sm text-gray-900 shadow-sm">
+              <label htmlFor="topPInput" className="text-[14px] font-medium text-gray-700">Top P</label>
+              <div className="w-12 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-lg text-sm text-gray-900 shadow-sm" aria-hidden="true">
                 {config.topP}
               </div>
             </div>
             <input
+              id="topPInput"
               type="range"
               min="0"
               max="1"
@@ -406,8 +416,9 @@ chatCompletionsStream();`;
 
           {/* Max Tokens */}
           <div>
-            <label className="text-[14px] font-medium text-gray-700 block mb-2">Max Tokens</label>
+            <label htmlFor="maxTokens" className="text-[14px] font-medium text-gray-700 block mb-2">Max Tokens</label>
             <input
+              id="maxTokens"
               type="number"
               value={config.maxTokens}
               onChange={(e) => onChange({ ...config, maxTokens: parseInt(e.target.value) || 1 })}
@@ -419,16 +430,16 @@ chatCompletionsStream();`;
           {config.provider === "sarvam" && (
             <>
               <div>
-                <label className="text-[14px] font-medium text-gray-700 block mb-2">Reasoning effort</label>
+                <label htmlFor="reasoningEffort" className="text-[14px] font-medium text-gray-700 block mb-2">Reasoning effort</label>
                 <div className="relative">
                   <select
+                    id="reasoningEffort"
                     value={config.reasoningEffort}
                     onChange={(e) => {
                       playUISound("pop", "aero");
                       onChange({ ...config, reasoningEffort: e.target.value as any });
                     }}
                     className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 shadow-sm cursor-pointer"
-                    aria-label="Reasoning Effort"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -458,6 +469,7 @@ chatCompletionsStream();`;
                     <button
                       role="switch"
                       aria-checked={config.ollamaThinking ?? false}
+                      aria-label="Toggle Thinking Capabilities"
                       onClick={() => {
                         playUISound("pop", "aero");
                         onChange({ ...config, ollamaThinking: !(config.ollamaThinking ?? false) });
@@ -479,7 +491,7 @@ chatCompletionsStream();`;
                   <div className="flex items-center gap-2.5 py-2.5 px-3 bg-white border border-gray-200 rounded-xl">
                     <div className="flex flex-col gap-0.5 flex-1">
                       <span className="text-sm font-medium text-gray-800">Vision</span>
-                      <span className="text-[11px] text-gray-400">Multimodal architecture detected.</span>
+                      <span className="text-[11px] text-gray-500">Multimodal architecture detected.</span>
                     </div>
                   </div>
                 )}
@@ -490,9 +502,10 @@ chatCompletionsStream();`;
 
           {/* Error Simulation */}
           <div>
-            <label className="text-[14px] font-medium text-gray-700 block mb-2">Simulate stream error</label>
+            <label htmlFor="simulatedError" className="text-[14px] font-medium text-gray-700 block mb-2">Simulate stream error</label>
             <div className="relative">
               <select
+                id="simulatedError"
                 value={config.simulatedError}
                 onChange={(e) => {
                   playUISound("pop", "aero");
@@ -508,7 +521,7 @@ chatCompletionsStream();`;
               </select>
               <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-gray-500 mt-2">
               Forces the next generation to fail mid-stream to verify UX resilience.
             </p>
           </div>

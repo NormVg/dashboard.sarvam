@@ -37,6 +37,8 @@ export function Sidebar() {
             onClick={toggleSidebar}
             className={styles.toggleButton}
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!isCollapsed}
           >
             {isCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
           </button>
@@ -44,7 +46,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <div className={`${styles.sidebarContent} px-3 py-4 space-y-1`}>
+      <nav className={`${styles.sidebarContent} px-3 py-4 space-y-1`} aria-label="Main Navigation">
         {navLinks.map((link) => {
           const isActive = pathname === link.href;
           const Icon = link.icon;
@@ -60,7 +62,7 @@ export function Sidebar() {
               }`}
               title={isCollapsed ? link.label : undefined}
             >
-              <Icon size={18} className={`shrink-0 ${isActive ? "text-gray-900" : "text-gray-400"}`} />
+              <Icon size={18} className={`shrink-0 ${isActive ? "text-gray-900" : "text-gray-500"}`} />
               <span 
                 className={`overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${
                   isCollapsed ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100"
@@ -71,7 +73,7 @@ export function Sidebar() {
             </Link>
           );
         })}
-      </div>
+      </nav>
     </aside>
   );
 }

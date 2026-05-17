@@ -524,7 +524,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
                           </div>
                         ) : (
                           <span className="inline-flex items-center py-1">
-                            <Aperture size={16} className="spin-spring text-gray-400" />
+                            <Aperture size={16} className="spin-spring text-gray-500" />
                           </span>
                         )}
                       </div>
@@ -538,7 +538,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => handleCopy(msg.content, i)}
-                              className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-200"
+                              className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-200"
                               title="Copy message"
                               aria-label="Copy message"
                             >
@@ -556,7 +556,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
                             </button>
                             <button
                               onClick={() => handleReply(msg.content)}
-                              className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-200"
+                              className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-200"
                               title="Reply to message"
                               aria-label="Reply to message"
                             >
@@ -568,7 +568,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
 
                         {/* Inline Token Metrics — Minimal Style */}
                         {((isStreamingThis) || (i === messages.length - 1 && metrics.tokenCount > 0)) && (
-                          <div className="flex items-center gap-2.5 text-[11px] text-gray-400 select-none transition-all duration-300">
+                          <div className="flex items-center gap-2.5 text-[11px] text-gray-500 select-none transition-all duration-300">
                             <span className="flex items-center gap-1">
                               <Zap size={11} className="text-amber-450" />
                               <span className="tabular-nums font-mono text-gray-500 font-semibold">{metrics.tokenCount}</span>
@@ -581,7 +581,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
                             </span>
                             <span className="w-px h-2 bg-gray-200" />
                             <span className="flex items-center gap-0.5">
-                              <span className="text-gray-400">avg</span>
+                              <span className="text-gray-500">avg</span>
                               <span className="tabular-nums font-mono text-gray-500 font-semibold">{metrics.avgTps}</span>
                               <span>tok/s</span>
                             </span>
@@ -663,7 +663,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
 
           {/* Hint */}
           <p
-            className="text-xs text-gray-400 text-center overflow-hidden"
+            className="text-xs text-gray-500 text-center overflow-hidden"
             style={{
               opacity: isEmpty ? 1 : 0,
               maxHeight: isEmpty ? "30px" : "0px",
