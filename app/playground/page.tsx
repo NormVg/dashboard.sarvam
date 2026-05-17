@@ -25,7 +25,13 @@ export default function PlaygroundPage() {
     const savedConfig = localStorage.getItem("sarvam_playground_config");
     if (savedConfig) {
       try {
-        setConfig(JSON.parse(savedConfig));
+        const parsed = JSON.parse(savedConfig);
+        // Merge with defaults so new fields (like provider) don't break old cached configs
+        setConfig({ 
+          ...DEFAULT_PLAYGROUND_CONFIG, 
+          ...parsed,
+          provider: (parsed.provider === "ollama" || parsed.provider === "sarvam") ? parsed.provider : "sarvam"
+        });
       } catch (e) {
         console.error("Failed to load playground config", e);
       }
