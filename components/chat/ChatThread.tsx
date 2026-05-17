@@ -1,8 +1,11 @@
 import { Bot, User } from "lucide-react";
+import { ReasoningBlock } from "../playground/ReasoningBlock";
+import { MarkdownRenderer } from "../playground/MarkdownRenderer";
 
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  reasoning?: string;
 }
 
 export function ChatThread({ messages }: { messages: ChatMessage[] }) {
@@ -20,16 +23,34 @@ export function ChatThread({ messages }: { messages: ChatMessage[] }) {
                 : "bg-[#FAFAFA] border border-gray-200 text-gray-700"
             }`}
           >
-            {msg.role === "user" ? <User size={16} /> : <Bot size={16} />}
+            {msg.role === "user" ? (
+              <User size={16} />
+            ) : (
+              <Bot 
+                size={16} 
+                className={idx === messages.length - 1 && !msg.content ? "animate-spin" : ""} 
+                style={idx === messages.length - 1 && !msg.content ? { animationDuration: '3s' } : undefined}
+              />
+            )}
           </div>
           <div
             className={`max-w-[80%] rounded-2xl px-5 py-3 ${
               msg.role === "user"
                 ? "bg-gray-100 text-gray-900"
-                : "bg-transparent text-gray-800"
+                : "bg-transparent text-gray-800 w-full"
             }`}
           >
-            {msg.content || <span className="animate-pulse">...</span>}
+            {msg.reasoning && (
+              <ReasoningBlock 
+                content={msg.reasoning}
+                isStreaming={idx === messages.length - 1 && !msg.content}
+              />
+            )}
+            {msg.role === "user" ? (
+              msg.content
+            ) : (
+              msg.content ? <MarkdownRenderer content={msg.content} /> : <span className="animate-pulse">...</span>
+            )}
           </div>
         </div>
       ))}

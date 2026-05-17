@@ -6,8 +6,7 @@ import { ChatComposer } from "./ChatComposer";
 import { ChatSuggestions } from "./ChatSuggestions";
 import { ChatThread, type ChatMessage } from "./ChatThread";
 import { motion, AnimatePresence } from "framer-motion";
-
-const API_URL = "/api/chat";
+import { streamSarvamChat } from "../../lib/sarvam-api";
 
 export function ChatMain() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -40,74 +39,57 @@ export function ChatMain() {
     setMessages((prev) => [...prev, userMessage, { role: "assistant", content: "" }]);
 
     try {
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "API-Subscription-Key": resolvedApiKey,
-          "Content-Type": "application/json",
+      await streamSarvamChat({
+        messages: messagesForRequest,
+        apiKey: resolvedApiKey,
+        onReasoningChunk: (content) => {
+          setMessages((prev) => {
+            if (prev.length === 0) return prev;
+            const lastIdx = prev.length - 1;
+            const last = prev[lastIdx];
+            if (last.role !== "assistant") return prev;
+            const updated = { ...last, reasoning: (last.reasoning || "") + content };
+            return [...prev.slice(0, lastIdx), updated];
+          });
         },
-        body: JSON.stringify({
-          model: "sarvam-105b",
-          messages: messagesForRequest,
-          temperature: 0.8,
-          top_p: 1,
-          max_tokens: 4096,
-          stream: true,
-          reasoning_effort: "medium",
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith("data:")) continue;
-          const data = trimmed.slice(5).trim();
-          if (data === "[DONE]") break;
-
-          try {
-            const chunk = JSON.parse(data);
-            const content = chunk.choices[0]?.delta?.content;
-            if (!content) continue;
-            setMessages((prev) => {
-              if (prev.length === 0) return prev;
-              const lastIdx = prev.length - 1;
-              const last = prev[lastIdx];
-              if (last.role !== "assistant") return prev;
-              const updated = { ...last, content: last.content + content };
-              return [...prev.slice(0, lastIdx), updated];
-            });
-          } catch (e) {
-            console.error("Error parsing chunk", e);
-          }
+        onChunk: (content) => {
+          setMessages((prev) => {
+            if (prev.length === 0) return prev;
+            const lastIdx = prev.length - 1;
+            const last = prev[lastIdx];
+            if (last.role !== "assistant") return prev;
+            const updated = { ...last, content: last.content + content };
+            return [...prev.slice(0, lastIdx), updated];
+          });
+        },
+        onError: (error) => {
+          setMessages((prev) => {
+            if (prev.length === 0) return prev;
+            const lastIdx = prev.length - 1;
+            const last = prev[lastIdx];
+            if (last.role !== "assistant") return prev;
+            const updated = {
+              ...last,
+              content: `Error: ${error.message}. Please check your API key.`,
+            };
+            return [...prev.slice(0, lastIdx), updated];
+          });
         }
-      }
-    } catch (error: any) {
-      setMessages((prev) => {
-        if (prev.length === 0) return prev;
-        const lastIdx = prev.length - 1;
-        const last = prev[lastIdx];
-        if (last.role !== "assistant") return prev;
-        const updated = {
-          ...last,
-          content: `Error: ${error.message}. Please check your API key.`,
-        };
-        return [...prev.slice(0, lastIdx), updated];
       });
+    } catch (error: any) {
+      if (error.name !== "AbortError") {
+        setMessages((prev) => {
+          if (prev.length === 0) return prev;
+          const lastIdx = prev.length - 1;
+          const last = prev[lastIdx];
+          if (last.role !== "assistant") return prev;
+          const updated = {
+            ...last,
+            content: `Error: ${error.message}. Please check your API key.`,
+          };
+          return [...prev.slice(0, lastIdx), updated];
+        });
+      }
     } finally {
       setIsLoading(false);
     }

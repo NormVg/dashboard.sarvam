@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import { ArrowUp, Square, Paperclip, Mic } from "lucide-react";
+import { ArrowUp, Square, Mic } from "lucide-react";
 
 type Variant = "empty" | "thread";
 
@@ -86,13 +86,6 @@ export function PromptBar({
           <button
             type="button"
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
-            title="Attach file"
-          >
-            <Paperclip size={18} />
-          </button>
-          <button
-            type="button"
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
             title="Voice input"
           >
             <Mic size={18} />
@@ -114,7 +107,8 @@ export function PromptBar({
           <button
             type="button"
             onClick={onSend}
-            disabled={sendDisabled || undefined}
+            disabled={sendDisabled}
+            suppressHydrationWarning
             className={`flex items-center justify-center text-white rounded-full transition-colors flex-shrink-0 ${
               sendDisabled 
                 ? "bg-[#9CA3AF] cursor-not-allowed opacity-50" 

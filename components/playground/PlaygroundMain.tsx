@@ -3,16 +3,21 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { PromptBar } from "./PromptBar";
 import { MarkdownRenderer } from "./MarkdownRenderer";
+import { ReasoningBlock } from "./ReasoningBlock";
 import { Settings2, Copy, Check, CornerDownLeft, Zap } from "lucide-react";
+import { streamSarvamChat } from "../../lib/sarvam-api";
+import { PlaygroundConfig } from "@/types/playground";
 
 interface PlaygroundMainProps {
   isSettingsOpen: boolean;
   onOpenSettings: () => void;
+  config: PlaygroundConfig;
 }
 
 interface PlaygroundMessage {
   role: "user" | "assistant";
   content: string;
+  reasoning?: string;
 }
 
 interface StreamMetrics {
@@ -26,7 +31,7 @@ interface StreamMetrics {
 
 const API_URL = "/api/chat";
 
-export function PlaygroundMain({ isSettingsOpen, onOpenSettings }: PlaygroundMainProps) {
+export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: PlaygroundMainProps) {
   const [messages, setMessages] = useState<PlaygroundMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -99,80 +104,73 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings }: PlaygroundMai
 
       abortControllerRef.current = new AbortController();
 
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "API-Subscription-Key": apiKey,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "sarvam-105b",
-          messages: [...messages, userMessage],
-          temperature: 0.8,
-          top_p: 1,
-          max_tokens: 4096,
-          stream: true,
-          reasoning_effort: "medium",
-        }),
-        signal: abortControllerRef.current.signal,
-      });
-
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith("data:")) continue;
-          const data = trimmed.slice(5).trim();
-          if (data === "[DONE]") break;
-
-          try {
-            const chunk = JSON.parse(data);
-            const content = chunk.choices[0]?.delta?.content;
-            if (!content) continue;
-
-            const newTokens = content.split(/[\s]+/).filter(Boolean).length || 1;
-            tokenCountRef.current += newTokens;
-            const elapsed = (performance.now() - startTimeRef.current) / 1000;
-            const tps = elapsed > 0 ? tokenCountRef.current / elapsed : 0;
-
-            setMetrics((prev) => {
-              const samples = [...prev.tpsSamples, tps].slice(-20); // keep last 20
-              const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
-              return {
-                tokenCount: tokenCountRef.current,
-                tokensPerSecond: Math.round(tps * 10) / 10,
-                avgTps: Math.round(avg * 10) / 10,
-                startTime: startTimeRef.current,
-                isStreaming: true,
-                tpsSamples: samples,
-              };
-            });
-
-            setMessages((prev) => {
-              const lastIdx = prev.length - 1;
-              const last = prev[lastIdx];
-              if (last.role !== "assistant") return prev;
-              return [...prev.slice(0, lastIdx), { ...last, content: last.content + content }];
-            });
-          } catch {}
-        }
+      const requestMessages: PlaygroundMessage[] = [];
+      if (config.systemInstruction.trim()) {
+        requestMessages.push({ role: "system", content: config.systemInstruction.trim() });
       }
+      requestMessages.push(...messages, userMessage);
+
+      await streamSarvamChat({
+        messages: requestMessages,
+        apiKey,
+        model: config.model,
+        temperature: config.temperature,
+        maxTokens: config.maxTokens,
+        topP: config.topP,
+        reasoningEffort: config.reasoningEffort,
+        signal: abortControllerRef.current.signal,
+        onReasoningChunk: (reasoningContent) => {
+          setMessages((prev) => {
+            const lastIdx = prev.length - 1;
+            const last = prev[lastIdx];
+            if (last.role !== "assistant") return prev;
+            return [
+              ...prev.slice(0, lastIdx), 
+              { ...last, reasoning: (last.reasoning || "") + reasoningContent }
+            ];
+          });
+        },
+        onChunk: (content) => {
+          const newTokens = content.split(/[\s]+/).filter(Boolean).length || 1;
+          tokenCountRef.current += newTokens;
+          const elapsed = (performance.now() - startTimeRef.current) / 1000;
+          const tps = elapsed > 0 ? tokenCountRef.current / elapsed : 0;
+
+          setMetrics((prev) => {
+            const samples = [...prev.tpsSamples, tps].slice(-20); // keep last 20
+            const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
+            return {
+              tokenCount: tokenCountRef.current,
+              tokensPerSecond: Math.round(tps * 10) / 10,
+              avgTps: Math.round(avg * 10) / 10,
+              startTime: startTimeRef.current,
+              isStreaming: true,
+              tpsSamples: samples,
+            };
+          });
+
+          setMessages((prev) => {
+            const lastIdx = prev.length - 1;
+            const last = prev[lastIdx];
+            if (last.role !== "assistant") return prev;
+            return [...prev.slice(0, lastIdx), { ...last, content: last.content + content }];
+          });
+        },
+        onError: (error) => {
+          setMessages((prev) => {
+            const lastIdx = prev.length - 1;
+            const last = prev[lastIdx];
+            if (last.role !== "assistant") return prev;
+            return [...prev.slice(0, lastIdx), { ...last, content: `Error: ${error.message}` }];
+          });
+        },
+        onFinish: () => {
+          // Additional finish logic if needed
+        }
+      });
     } catch (error: any) {
-      if (error.name === "AbortError") {
-        // User stopped — keep content
-      } else {
+      // Errors are mostly handled in onError above, except thrown synchronous errors
+      if (error.name !== "AbortError") {
         setMessages((prev) => {
           const lastIdx = prev.length - 1;
           const last = prev[lastIdx];
@@ -235,8 +233,14 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings }: PlaygroundMai
                           : "text-gray-800"
                       }`}
                     >
-                      {msg.content ? (
+                      {msg.content || msg.reasoning ? (
                         <div className="relative">
+                          {msg.reasoning && (
+                            <ReasoningBlock 
+                              content={msg.reasoning} 
+                              isStreaming={isStreamingThis && !msg.content}
+                            />
+                          )}
                           <MarkdownRenderer content={msg.content} />
                           {/* Streaming blur edge effect */}
                           {isStreamingThis && (
@@ -389,7 +393,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings }: PlaygroundMai
               pointerEvents: isEmpty ? "auto" : "none",
             }}
           >
-            sarvam-105b · Press Enter to send
+            {config.model} · Press Enter to send
           </p>
         </div>
       </div>
