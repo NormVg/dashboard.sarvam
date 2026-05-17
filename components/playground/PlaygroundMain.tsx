@@ -15,7 +15,7 @@ interface PlaygroundMainProps {
 }
 
 interface PlaygroundMessage {
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
   reasoning?: string;
 }
