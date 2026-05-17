@@ -20,7 +20,7 @@ interface PlaygroundMessage {
   reasoning?: string;
 }
 
-interface StreamMetrics {
+export interface StreamMetrics {
   tokenCount: number;
   tokensPerSecond: number;
   avgTps: number;
@@ -64,8 +64,10 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
   // Only auto-scroll if user is near the bottom
   const scrollToBottom = useCallback(() => {
     if (isUserScrolledUpRef.current) return;
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
+    messagesEndRef.current?.scrollIntoView({ 
+      behavior: isLoading ? "auto" : "smooth" 
+    });
+  }, [isLoading]);
 
   useEffect(() => {
     scrollToBottom();
@@ -289,6 +291,42 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
                             </button>
                           </div>
                         )}
+
+                        {/* Inline Token Metrics Pill */}
+                        {((isStreamingThis) || (i === messages.length - 1 && metrics.tokenCount > 0)) && (
+                          <div className="flex items-center gap-2.5 bg-gray-50 border border-gray-150 px-3 py-1 rounded-full text-xs text-gray-400 select-none transition-all duration-300">
+                            <span className="flex items-center gap-1 font-medium">
+                              <Zap size={11} className="text-amber-500 animate-pulse" />
+                              <span className="tabular-nums font-mono text-gray-600 font-semibold">{metrics.tokenCount}</span>
+                              <span>tokens</span>
+                            </span>
+                            <span className="w-px h-2.5 bg-gray-200" />
+                            <span className="flex items-center gap-0.5">
+                              <span className="tabular-nums font-mono text-gray-600 font-semibold">{metrics.tokensPerSecond}</span>
+                              <span>tok/s</span>
+                            </span>
+                            <span className="w-px h-2.5 bg-gray-200" />
+                            <span className="flex items-center gap-0.5">
+                              <span>avg</span>
+                              <span className="tabular-nums font-mono text-gray-600 font-semibold">{metrics.avgTps}</span>
+                              <span>tok/s</span>
+                            </span>
+                            <span className="w-px h-2.5 bg-gray-200" />
+                            <div className="flex items-center gap-1">
+                              {metrics.isStreaming ? (
+                                <>
+                                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
+                                  <span className="text-[9px] uppercase tracking-wider text-emerald-600 font-bold">streaming</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Check size={11} className="text-emerald-500 font-bold" />
+                                  <span className="text-[9px] uppercase tracking-wider text-gray-400 font-semibold">complete</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -332,42 +370,6 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
           >
             Explore Sarvam models
           </h1>
-
-          {/* Token Metrics Pill — Centered and stationary above the input box */}
-          {metrics.tokenCount > 0 && !isEmpty && (
-            <div className="mb-2 self-start flex items-center gap-3 bg-white/95 backdrop-blur-md border border-gray-200 px-3.5 py-1.5 rounded-full shadow-sm transition-all duration-300">
-              <div className="flex items-center gap-1 text-[11px] text-gray-600 font-medium">
-                <Zap size={11} className="text-amber-500 animate-pulse" />
-                <span className="tabular-nums font-mono">{metrics.tokenCount}</span>
-                <span className="text-gray-400">tokens</span>
-              </div>
-              <div className="w-px h-2.5 bg-gray-200" />
-              <div className="flex items-center gap-1 text-[11px] text-gray-600 font-medium">
-                <span className="tabular-nums font-mono">{metrics.tokensPerSecond}</span>
-                <span className="text-gray-400">tok/s</span>
-              </div>
-              <div className="w-px h-2.5 bg-gray-200" />
-              <div className="flex items-center gap-1 text-[11px] text-gray-600 font-medium">
-                <span className="text-gray-400">avg</span>
-                <span className="tabular-nums font-mono">{metrics.avgTps}</span>
-                <span className="text-gray-400">tok/s</span>
-              </div>
-              <div className="w-px h-2.5 bg-gray-200" />
-              <div className="flex items-center gap-1.5">
-                {metrics.isStreaming ? (
-                  <>
-                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
-                    <span className="text-[9px] uppercase tracking-wider text-emerald-600 font-bold">streaming</span>
-                  </>
-                ) : (
-                  <>
-                    <Check size={11} className="text-emerald-500 font-bold" />
-                    <span className="text-[9px] uppercase tracking-wider text-gray-400 font-semibold">complete</span>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Prompt Bar */}
           <div className="w-full">
