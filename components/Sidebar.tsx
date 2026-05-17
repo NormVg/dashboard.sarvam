@@ -60,8 +60,14 @@ export function Sidebar() {
               } ${isCollapsed ? "justify-center" : "justify-start"}`}
               title={isCollapsed ? link.label : undefined}
             >
-              <Icon size={18} className={isActive ? "text-gray-900" : "text-gray-400"} />
-              {!isCollapsed && <span>{link.label}</span>}
+              <Icon size={18} className={`shrink-0 ${isActive ? "text-gray-900" : "text-gray-400"}`} />
+              <span 
+                className={`overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${
+                  isCollapsed ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100"
+                }`}
+              >
+                {link.label}
+              </span>
             </Link>
           );
         })}
