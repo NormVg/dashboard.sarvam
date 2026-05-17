@@ -259,7 +259,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
                     {/* Action buttons & Metrics */}
                     {msg.content && isAssistant && (
                       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-1.5 justify-start">
-                        {/* Always visible action buttons */}
+                        {/* Action buttons — visible when complete */}
                         {!isStreamingThis && (
                           <div className="flex items-center gap-1">
                             <button
@@ -287,42 +287,6 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
                               <CornerDownLeft size={13} />
                               <span>Reply</span>
                             </button>
-                          </div>
-                        )}
-
-                        {/* Streaming metrics — visible while streaming, hover-only when complete */}
-                        {((isStreamingThis) || (i === messages.length - 1 && metrics.tokenCount > 0)) && (
-                          <div className={`flex items-center gap-3 transition-opacity duration-300 ${isStreamingThis ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                            <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                              <Zap size={12} className="text-amber-400" />
-                              <span className="tabular-nums font-mono">{metrics.tokenCount}</span>
-                              <span>tokens</span>
-                            </div>
-                            <div className="w-px h-3 bg-gray-200" />
-                            <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                              <span className="tabular-nums font-mono">{metrics.tokensPerSecond}</span>
-                              <span>tok/s</span>
-                            </div>
-                            <div className="w-px h-3 bg-gray-200" />
-                            <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                              <span>avg</span>
-                              <span className="tabular-nums font-mono">{metrics.avgTps}</span>
-                              <span>tok/s</span>
-                            </div>
-                            <div className="w-px h-3 bg-gray-200" />
-                            <div className="flex items-center gap-1">
-                              {metrics.isStreaming ? (
-                                <>
-                                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                                  <span className="text-xs text-gray-400">streaming</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Check size={12} className="text-emerald-500" />
-                                  <span className="text-xs text-gray-400">complete</span>
-                                </>
-                              )}
-                            </div>
                           </div>
                         )}
                       </div>
@@ -397,6 +361,41 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
           </p>
         </div>
       </div>
+      {/* Floating stationary Token Metrics Pill */}
+      {metrics.tokenCount > 0 && !isEmpty && (
+        <div className="absolute bottom-6 left-6 z-20 flex items-center gap-3 bg-white/90 backdrop-blur-md border border-gray-200 px-4 py-2 rounded-full shadow-lg transition-all duration-300 pointer-events-auto">
+          <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium">
+            <Zap size={13} className="text-amber-500 animate-pulse" />
+            <span className="tabular-nums font-mono">{metrics.tokenCount}</span>
+            <span className="text-gray-400">tokens</span>
+          </div>
+          <div className="w-px h-3 bg-gray-200" />
+          <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium">
+            <span className="tabular-nums font-mono">{metrics.tokensPerSecond}</span>
+            <span className="text-gray-400">tok/s</span>
+          </div>
+          <div className="w-px h-3 bg-gray-200" />
+          <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium">
+            <span className="text-gray-400">avg</span>
+            <span className="tabular-nums font-mono">{metrics.avgTps}</span>
+            <span className="text-gray-400">tok/s</span>
+          </div>
+          <div className="w-px h-3 bg-gray-200" />
+          <div className="flex items-center gap-1.5">
+            {metrics.isStreaming ? (
+              <>
+                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
+                <span className="text-[10px] uppercase tracking-wider text-emerald-600 font-bold">streaming</span>
+              </>
+            ) : (
+              <>
+                <Check size={13} className="text-emerald-500 font-bold" />
+                <span className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">complete</span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
