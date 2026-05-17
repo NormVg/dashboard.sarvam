@@ -225,9 +225,10 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
         throw new Error("Stream connection terminated unexpectedly by remote endpoint (Simulated Stream Interruption)");
 
       } else if (type === "timeout") {
-        // Just hang! Let the 20-second inactivity interval fire.
-        // We sleep for a long time to allow the client interval to trigger timeout naturally.
-        await sleep(35000);
+        // Wait 20 seconds to realistically simulate the timeout
+        await sleep(20000);
+        if (signal.aborted) throw new Error("AbortError");
+        throw new Error("Request timed out: No data was received from the model for over 20 seconds. Please check your connection and try again.");
       }
 
     } catch (err: any) {
