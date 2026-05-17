@@ -292,36 +292,36 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
                           </div>
                         )}
 
-                        {/* Inline Token Metrics Pill */}
+                        {/* Inline Token Metrics — Minimal Style */}
                         {((isStreamingThis) || (i === messages.length - 1 && metrics.tokenCount > 0)) && (
-                          <div className="flex items-center gap-2.5 bg-gray-50 border border-gray-150 px-3 py-1 rounded-full text-xs text-gray-400 select-none transition-all duration-300">
-                            <span className="flex items-center gap-1 font-medium">
-                              <Zap size={11} className="text-amber-500 animate-pulse" />
-                              <span className="tabular-nums font-mono text-gray-600 font-semibold">{metrics.tokenCount}</span>
+                          <div className="flex items-center gap-2.5 text-[11px] text-gray-400 select-none transition-all duration-300">
+                            <span className="flex items-center gap-1">
+                              <Zap size={11} className="text-amber-450" />
+                              <span className="tabular-nums font-mono text-gray-500 font-semibold">{metrics.tokenCount}</span>
                               <span>tokens</span>
                             </span>
-                            <span className="w-px h-2.5 bg-gray-200" />
+                            <span className="w-px h-2 bg-gray-200" />
                             <span className="flex items-center gap-0.5">
-                              <span className="tabular-nums font-mono text-gray-600 font-semibold">{metrics.tokensPerSecond}</span>
+                              <span className="tabular-nums font-mono text-gray-500 font-semibold">{metrics.tokensPerSecond}</span>
                               <span>tok/s</span>
                             </span>
-                            <span className="w-px h-2.5 bg-gray-200" />
+                            <span className="w-px h-2 bg-gray-200" />
                             <span className="flex items-center gap-0.5">
-                              <span>avg</span>
-                              <span className="tabular-nums font-mono text-gray-600 font-semibold">{metrics.avgTps}</span>
+                              <span className="text-gray-400">avg</span>
+                              <span className="tabular-nums font-mono text-gray-500 font-semibold">{metrics.avgTps}</span>
                               <span>tok/s</span>
                             </span>
-                            <span className="w-px h-2.5 bg-gray-200" />
+                            <span className="w-px h-2 bg-gray-200" />
                             <div className="flex items-center gap-1">
                               {metrics.isStreaming ? (
                                 <>
-                                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
+                                  <span className="w-1 h-1 bg-emerald-500 rounded-full animate-ping" />
                                   <span className="text-[9px] uppercase tracking-wider text-emerald-600 font-bold">streaming</span>
                                 </>
                               ) : (
                                 <>
                                   <Check size={11} className="text-emerald-500 font-bold" />
-                                  <span className="text-[9px] uppercase tracking-wider text-gray-400 font-semibold">complete</span>
+                                  <span className="text-[9px] uppercase tracking-wider text-gray-450 font-semibold">complete</span>
                                 </>
                               )}
                             </div>
