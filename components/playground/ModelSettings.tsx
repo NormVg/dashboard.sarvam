@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Info, ChevronDown, Code2, RotateCcw, X, Copy, Check } from "lucide-react";
 import { PlaygroundConfig, DEFAULT_PLAYGROUND_CONFIG } from "@/types/playground";
+import { playUISound } from "@thenormvg/web-have-sounds";
 
 interface ModelSettingsProps {
   isOpen: boolean;
@@ -75,6 +76,7 @@ chatCompletionsStream();`;
   };
 
   const handleCopyCode = () => {
+    playUISound("success", "glass");
     navigator.clipboard.writeText(getCodeSnippet());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -94,22 +96,34 @@ chatCompletionsStream();`;
           <h3 className="text-[13px] font-medium text-gray-500 uppercase tracking-wider">settings</h3>
           <div className="flex items-center gap-1 text-gray-400">
             <button 
-              onClick={() => setShowCode(true)}
-              className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-200 hover:text-gray-700 rounded transition-colors text-xs font-medium"
+              onClick={() => {
+                playUISound("pop", "aero");
+                setShowCode(true);
+              }}
+              className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-200 hover:text-gray-700 rounded transition-colors text-xs font-medium focus:outline-none focus:ring-2 focus:ring-gray-300"
             >
               <Code2 size={14} />
               Get code
             </button>
             <button
-              onClick={() => onChange(DEFAULT_PLAYGROUND_CONFIG)}
-              className="p-1 hover:bg-gray-200 hover:text-gray-700 rounded transition-colors"
+              onClick={() => {
+                playUISound("success", "aero");
+                onChange(DEFAULT_PLAYGROUND_CONFIG);
+              }}
+              className="p-1 hover:bg-gray-200 hover:text-gray-700 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
               title="Reset to defaults"
+              aria-label="Reset to defaults"
             >
               <RotateCcw size={14} />
             </button>
             <button
-              onClick={onClose}
-              className="p-1 hover:bg-gray-200 hover:text-gray-700 rounded transition-colors"
+              onClick={() => {
+                playUISound("drop", "aero");
+                onClose();
+              }}
+              className="p-1 hover:bg-gray-200 hover:text-gray-700 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+              title="Close settings"
+              aria-label="Close settings"
             >
               <X size={16} />
             </button>
@@ -124,8 +138,12 @@ chatCompletionsStream();`;
             <div className="relative">
               <select
                 value={config.model}
-                onChange={(e) => onChange({ ...config, model: e.target.value })}
-                className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-300 shadow-sm cursor-pointer"
+                onChange={(e) => {
+                  playUISound("pop", "aero");
+                  onChange({ ...config, model: e.target.value });
+                }}
+                className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 shadow-sm cursor-pointer"
+                aria-label="Select Model"
               >
                 <option value="sarvam-105b">Sarvam 105B</option>
                 <option value="sarvam-30b">Sarvam 30B</option>
@@ -212,8 +230,12 @@ chatCompletionsStream();`;
             <div className="relative">
               <select
                 value={config.reasoningEffort}
-                onChange={(e) => onChange({ ...config, reasoningEffort: e.target.value as any })}
-                className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-300 shadow-sm cursor-pointer"
+                onChange={(e) => {
+                  playUISound("pop", "aero");
+                  onChange({ ...config, reasoningEffort: e.target.value as any });
+                }}
+                className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 shadow-sm cursor-pointer"
+                aria-label="Reasoning Effort"
               >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -231,8 +253,12 @@ chatCompletionsStream();`;
             <div className="relative">
               <select
                 value={config.simulatedError}
-                onChange={(e) => onChange({ ...config, simulatedError: e.target.value as any })}
-                className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-300 shadow-sm cursor-pointer animate-pulse-subtle"
+                onChange={(e) => {
+                  playUISound("pop", "aero");
+                  onChange({ ...config, simulatedError: e.target.value as any });
+                }}
+                className="w-full appearance-none bg-white border border-red-200 rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-300 shadow-sm cursor-pointer"
+                aria-label="Simulated Stream Error"
               >
                 <option value="none">None (Normal Stream)</option>
                 <option value="network">Simulate Network Drop</option>
@@ -262,21 +288,26 @@ chatCompletionsStream();`;
             showCode ? "scale-100 translate-y-0 opacity-100" : "scale-95 translate-y-4 opacity-0"
           }`}
         >
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900">Node.js Integration</h3>
+          <div className="flex items-center justify-between p-4 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-900">Integration Code</h2>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleCopyCode}
-                className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                className="p-2 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400"
+                title="Copy code"
+                aria-label="Copy code"
               >
                 {copied ? <Check size={14} /> : <Copy size={14} />}
-                {copied ? "Copied!" : "Copy Code"}
               </button>
-              <button
-                onClick={() => setShowCode(false)}
-                className="p-1.5 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
+              <button 
+                onClick={() => {
+                  playUISound("drop", "aero");
+                  setShowCode(false);
+                }}
+                className="p-1 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                aria-label="Close code snippet"
               >
-                <X size={16} />
+                <X size={16} className="text-gray-500" />
               </button>
             </div>
           </div>

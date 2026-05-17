@@ -26,13 +26,13 @@ export function Sidebar() {
       className={`${styles.sidebar} ${isCollapsed ? styles.sidebarCollapsed : styles.sidebarExpanded}`}
     >
       {/* Header & Collapse Toggle */}
-      <div className={styles.sidebarHeader}>
+      <div className="flex items-center w-full box-border p-4">
         <div className={`${styles.logoWrapper} ${isCollapsed ? styles.logoWrapperCollapsed : styles.logoWrapperExpanded}`}>
           <h1 className={styles.logo}>
             sarvam
           </h1>
         </div>
-        <div className={styles.toggleButtonWrapper}>
+        <div className="flex items-center justify-center ml-auto">
           <button 
             onClick={toggleSidebar}
             className={styles.toggleButton}
@@ -53,11 +53,11 @@ export function Sidebar() {
             <Link 
               key={link.href}
               href={link.href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm font-medium transition-colors ${
                 isActive 
                   ? "bg-gray-100 text-gray-900" 
                   : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              } ${isCollapsed ? "justify-center" : "justify-start"}`}
+              }`}
               title={isCollapsed ? link.label : undefined}
             >
               <Icon size={18} className={`shrink-0 ${isActive ? "text-gray-900" : "text-gray-400"}`} />

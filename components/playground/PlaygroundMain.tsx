@@ -7,6 +7,7 @@ import { ReasoningBlock } from "./ReasoningBlock";
 import { Settings2, Copy, Check, CornerDownLeft, Zap, AlertTriangle } from "lucide-react";
 import { streamSarvamChat } from "../../lib/sarvam-api";
 import { PlaygroundConfig } from "@/types/playground";
+import { playUISound } from "@thenormvg/web-have-sounds";
 
 interface PlaygroundMainProps {
   isSettingsOpen: boolean;
@@ -75,12 +76,14 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
   }, [messages, scrollToBottom]);
 
   const handleCopy = useCallback((content: string, index: number) => {
+    playUISound("success", "glass");
     navigator.clipboard.writeText(content);
     setCopiedIndex(index);
     setTimeout(() => setCopiedIndex(null), 2000);
   }, []);
 
   const handleReply = useCallback((content: string) => {
+    playUISound("pop", "aero");
     const firstLine = content.split("\n")[0].slice(0, 100);
     setInput(`> ${firstLine}\n\n`);
   }, []);
@@ -378,9 +381,13 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
       {!isSettingsOpen && (
         <div className="absolute top-4 right-4 z-20">
           <button
-            onClick={onOpenSettings}
-            className="p-2 bg-white border border-gray-200 text-gray-600 hover:text-gray-900 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+            onClick={() => {
+              playUISound("pop", "aero");
+              onOpenSettings();
+            }}
+            className="p-2 bg-white border border-gray-200 text-gray-600 hover:text-gray-900 rounded-lg shadow-sm hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
             title="Open settings"
+            aria-label="Open settings"
           >
             <Settings2 size={18} />
           </button>
@@ -454,8 +461,9 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => handleCopy(msg.content, i)}
-                              className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
-                              title="Copy"
+                              className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-200"
+                              title="Copy message"
+                              aria-label="Copy message"
                             >
                               {copiedIndex === i ? (
                                 <>
@@ -471,8 +479,9 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
                             </button>
                             <button
                               onClick={() => handleReply(msg.content)}
-                              className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
-                              title="Reply"
+                              className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-200"
+                              title="Reply to message"
+                              aria-label="Reply to message"
                             >
                               <CornerDownLeft size={13} />
                               <span>Reply</span>

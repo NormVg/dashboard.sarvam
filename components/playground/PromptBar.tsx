@@ -3,6 +3,7 @@
 import { useRef, useEffect } from "react";
 import { ArrowUp, Square, Mic, Loader2 } from "lucide-react";
 import { useMicrophone } from "../../hooks/useMicrophone";
+import { playUISound } from "@thenormvg/web-have-sounds";
 
 type Variant = "empty" | "thread";
 
@@ -36,6 +37,7 @@ export function PromptBar({
 
   const handleMicClick = async () => {
     if (isRecording) {
+      playUISound("drop", "aero");
       setIsProcessing(true);
       const audioBlob = await stopRecording();
       if (audioBlob) {
@@ -63,6 +65,7 @@ export function PromptBar({
       }
       setIsProcessing(false);
     } else {
+      playUISound("pop", "aero");
       startRecording();
     }
   };
@@ -103,7 +106,10 @@ export function PromptBar({
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            if (!sendDisabled) onSend();
+            if (!sendDisabled) {
+              playUISound("click", "aero");
+              onSend();
+            }
           }
         }}
         rows={1}
@@ -126,9 +132,10 @@ export function PromptBar({
             className={`p-2 rounded-full transition-colors ${
               isRecording 
                 ? "bg-red-50 text-red-500 hover:bg-red-100 animate-pulse" 
-                : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                : "text-gray-400 hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200"
             }`}
             title={isRecording ? "Stop recording" : "Voice input"}
+            aria-label={isRecording ? "Stop recording" : "Voice input"}
           >
             {isProcessing ? (
               <Loader2 size={18} className="animate-spin text-gray-400" />
@@ -141,28 +148,36 @@ export function PromptBar({
         {isStreaming ? (
           <button
             type="button"
-            onClick={onStop}
-            className={`flex items-center justify-center bg-black text-white rounded-full hover:bg-gray-800 transition-colors flex-shrink-0 ${
+            onClick={() => {
+              playUISound("drop", "aero");
+              onStop?.();
+            }}
+            className={`flex items-center justify-center bg-black text-white rounded-full hover:bg-gray-800 transition-colors flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 ${
               variant === "empty" ? "w-10 h-10 ml-auto" : "w-9 h-9 ml-auto"
             }`}
             title="Stop generating"
+            aria-label="Stop generating"
           >
             <Square size={14} fill="white" />
           </button>
         ) : (
           <button
             type="button"
-            onClick={onSend}
+            onClick={() => {
+              playUISound("click", "aero");
+              onSend();
+            }}
             disabled={sendDisabled}
             suppressHydrationWarning
-            className={`flex items-center justify-center text-white rounded-full transition-colors flex-shrink-0 ${
+            className={`flex items-center justify-center text-white rounded-full transition-colors flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 ${
               sendDisabled 
                 ? "bg-[#9CA3AF] cursor-not-allowed opacity-50" 
                 : "bg-black hover:bg-gray-800"
             } ${
               variant === "empty" ? "w-10 h-10 ml-auto" : "w-9 h-9 ml-auto"
             }`}
-            title="Send"
+            title="Send message"
+            aria-label="Send message"
           >
             <ArrowUp size={20} />
           </button>
