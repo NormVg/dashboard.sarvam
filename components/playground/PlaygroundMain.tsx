@@ -85,6 +85,164 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
     setInput(`> ${firstLine}\n\n`);
   }, []);
 
+  const runSimulatedError = async (
+    type: "network" | "timeout" | "interrupted", 
+    onError: (err: Error) => void
+  ) => {
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+    let localTokenCount = 0;
+
+    const sleep = (ms: number) => new Promise<void>((resolve, reject) => {
+      if (signal.aborted) return reject(new Error("AbortError"));
+      
+      const timeout = setTimeout(resolve, ms);
+      
+      const onAbort = () => {
+        clearTimeout(timeout);
+        reject(new Error("AbortError"));
+      };
+      
+      signal.addEventListener("abort", onAbort);
+    });
+
+    try {
+      // Simulate initial loading lag
+      await sleep(1000);
+
+      // 1. Reasoning Phase
+      const reasoningChunks = [
+        "Analyzing user prompt parameters...\n",
+        "Structuring simulated story context...\n",
+        "Validating safety filters and parameters...\n"
+      ];
+
+      for (const chunk of reasoningChunks) {
+        if (signal.aborted) throw new Error("AbortError");
+        
+        setMessages((prev) => {
+          const lastIdx = prev.length - 1;
+          const last = prev[lastIdx];
+          if (last.role !== "assistant") return prev;
+          return [
+            ...prev.slice(0, lastIdx),
+            { ...last, reasoning: (last.reasoning || "") + chunk }
+          ];
+        });
+        
+        await sleep(400);
+      }
+
+      // 2. Content Phase (except for Timeout which hangs early)
+      if (type === "network") {
+        const contentChunks = [
+          "Here is a mock response demonstrating a ",
+          "sudden network drop mid-way through generation. ",
+          "Any text generated so far will be safely preserved, ",
+          "and a red interrupted warning banner will be displayed ",
+          "under this message bubble to alert the user."
+        ];
+
+        for (const chunk of contentChunks) {
+          if (signal.aborted) throw new Error("AbortError");
+
+          // Update metrics
+          localTokenCount += chunk.split(/\s+/).filter(Boolean).length || 1;
+          tokenCountRef.current = localTokenCount;
+          const elapsed = (performance.now() - startTimeRef.current) / 1000;
+          const tps = elapsed > 0 ? localTokenCount / elapsed : 0;
+          
+          setMetrics((prev) => {
+            const samples = [...prev.tpsSamples, tps].slice(-20);
+            const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
+            return {
+              tokenCount: localTokenCount,
+              tokensPerSecond: Math.round(tps * 10) / 10,
+              avgTps: Math.round(avg * 10) / 10,
+              startTime: startTimeRef.current,
+              isStreaming: true,
+              tpsSamples: samples,
+            };
+          });
+
+          setMessages((prev) => {
+            const lastIdx = prev.length - 1;
+            const last = prev[lastIdx];
+            if (last.role !== "assistant") return prev;
+            return [...prev.slice(0, lastIdx), { ...last, content: last.content + chunk }];
+          });
+
+          await sleep(250);
+        }
+
+        // Trigger Network Drop Error
+        throw new TypeError("Failed to fetch: Network connection dropped unexpectedly (Simulated Network Drop)");
+
+      } else if (type === "interrupted") {
+        const contentChunks = [
+          "This is a longer mock stream designed to show a ",
+          "stream interruption error. ",
+          "The generation starts perfectly and streams smoothly. ",
+          "Elias the cartographer was drawing a new map under the oak tree. ",
+          "He paused to drink some water and felt a gentle breeze rustling the leaves. ",
+          "Just as he was about to draw the final mountain range, ",
+          "the stream connection was severed by the host server."
+        ];
+
+        for (const chunk of contentChunks) {
+          if (signal.aborted) throw new Error("AbortError");
+
+          // Update metrics
+          localTokenCount += chunk.split(/\s+/).filter(Boolean).length || 1;
+          tokenCountRef.current = localTokenCount;
+          const elapsed = (performance.now() - startTimeRef.current) / 1000;
+          const tps = elapsed > 0 ? localTokenCount / elapsed : 0;
+          
+          setMetrics((prev) => {
+            const samples = [...prev.tpsSamples, tps].slice(-20);
+            const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
+            return {
+              tokenCount: localTokenCount,
+              tokensPerSecond: Math.round(tps * 10) / 10,
+              avgTps: Math.round(avg * 10) / 10,
+              startTime: startTimeRef.current,
+              isStreaming: true,
+              tpsSamples: samples,
+            };
+          });
+
+          setMessages((prev) => {
+            const lastIdx = prev.length - 1;
+            const last = prev[lastIdx];
+            if (last.role !== "assistant") return prev;
+            return [...prev.slice(0, lastIdx), { ...last, content: last.content + chunk }];
+          });
+
+          await sleep(250);
+        }
+
+        // Trigger Stream Interrupted Error
+        throw new Error("Stream connection terminated unexpectedly by remote endpoint (Simulated Stream Interruption)");
+
+      } else if (type === "timeout") {
+        // Just hang! Let the 20-second inactivity interval fire.
+        // We sleep for a long time to allow the client interval to trigger timeout naturally.
+        await sleep(35000);
+      }
+
+    } catch (err: any) {
+      if (err.message === "AbortError" || signal.aborted) {
+        // Manually stopped
+      } else {
+        onError(err);
+      }
+    } finally {
+      abortControllerRef.current = null;
+      setIsLoading(false);
+      setMetrics((prev) => ({ ...prev, isStreaming: false }));
+    }
+  };
+
   const handleSubmit = async () => {
     if (!input.trim()) return;
 
@@ -99,16 +257,6 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
     startTimeRef.current = performance.now();
     setMetrics({ tokenCount: 0, tokensPerSecond: 0, avgTps: 0, startTime: performance.now(), isStreaming: true, tpsSamples: [] });
 
-    let lastChunkTime = performance.now();
-    const checkInactivity = setInterval(() => {
-      const elapsed = (performance.now() - lastChunkTime) / 1000;
-      if (elapsed > 20) { // 20 second inactivity timeout
-        clearInterval(checkInactivity);
-        abortControllerRef.current?.abort();
-        handleStreamError(new Error("Request timed out: No data was received from the model for over 20 seconds. Please check your connection and try again."));
-      }
-    }, 2000);
-
     const handleStreamError = (error: Error) => {
       setMessages((prev) => {
         const lastIdx = prev.length - 1;
@@ -119,6 +267,22 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
         return [...prev.slice(0, lastIdx), { ...last, error: error.message }];
       });
     };
+
+    // If simulation is enabled, run custom simulation stream
+    if (config.simulatedError && config.simulatedError !== "none") {
+      await runSimulatedError(config.simulatedError, handleStreamError);
+      return;
+    }
+
+    let lastChunkTime = performance.now();
+    const checkInactivity = setInterval(() => {
+      const elapsed = (performance.now() - lastChunkTime) / 1000;
+      if (elapsed > 20) { // 20 second inactivity timeout
+        clearInterval(checkInactivity);
+        abortControllerRef.current?.abort();
+        handleStreamError(new Error("Request timed out: No data was received from the model for over 20 seconds. Please check your connection and try again."));
+      }
+    }, 2000);
 
     try {
       const apiKey = (process.env.NEXT_PUBLIC_SARVAM_API_KEY ?? "").trim();

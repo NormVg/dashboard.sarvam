@@ -5,6 +5,7 @@ export interface PlaygroundConfig {
   topP: number;
   reasoningEffort: "low" | "medium" | "high";
   systemInstruction: string;
+  simulatedError: "none" | "network" | "timeout" | "interrupted";
 }
 
 export const DEFAULT_PLAYGROUND_CONFIG: PlaygroundConfig = {
@@ -14,4 +15,5 @@ export const DEFAULT_PLAYGROUND_CONFIG: PlaygroundConfig = {
   topP: 1,
   reasoningEffort: "medium",
   systemInstruction: "",
+  simulatedError: "none",
 };

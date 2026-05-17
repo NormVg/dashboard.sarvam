@@ -223,6 +223,29 @@ chatCompletionsStream();`;
             </div>
           </div>
 
+          <div className="w-full h-[1px] bg-gray-200"></div>
+
+          {/* Error Simulation */}
+          <div>
+            <label className="text-[14px] font-medium text-gray-700 block mb-2">Simulate stream error</label>
+            <div className="relative">
+              <select
+                value={config.simulatedError}
+                onChange={(e) => onChange({ ...config, simulatedError: e.target.value as any })}
+                className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-300 shadow-sm cursor-pointer animate-pulse-subtle"
+              >
+                <option value="none">None (Normal Stream)</option>
+                <option value="network">Simulate Network Drop</option>
+                <option value="timeout">Simulate Timeout</option>
+                <option value="interrupted">Simulate Stream Interrupted</option>
+              </select>
+              <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              Forces the next generation to fail mid-stream to verify UX resilience.
+            </p>
+          </div>
+
         </div>
       </div>
 
