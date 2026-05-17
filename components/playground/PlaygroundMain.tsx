@@ -333,6 +333,42 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
             Explore Sarvam models
           </h1>
 
+          {/* Token Metrics Pill — Centered and stationary above the input box */}
+          {metrics.tokenCount > 0 && !isEmpty && (
+            <div className="mb-2 self-start flex items-center gap-3 bg-white/95 backdrop-blur-md border border-gray-200 px-3.5 py-1.5 rounded-full shadow-sm transition-all duration-300">
+              <div className="flex items-center gap-1 text-[11px] text-gray-600 font-medium">
+                <Zap size={11} className="text-amber-500 animate-pulse" />
+                <span className="tabular-nums font-mono">{metrics.tokenCount}</span>
+                <span className="text-gray-400">tokens</span>
+              </div>
+              <div className="w-px h-2.5 bg-gray-200" />
+              <div className="flex items-center gap-1 text-[11px] text-gray-600 font-medium">
+                <span className="tabular-nums font-mono">{metrics.tokensPerSecond}</span>
+                <span className="text-gray-400">tok/s</span>
+              </div>
+              <div className="w-px h-2.5 bg-gray-200" />
+              <div className="flex items-center gap-1 text-[11px] text-gray-600 font-medium">
+                <span className="text-gray-400">avg</span>
+                <span className="tabular-nums font-mono">{metrics.avgTps}</span>
+                <span className="text-gray-400">tok/s</span>
+              </div>
+              <div className="w-px h-2.5 bg-gray-200" />
+              <div className="flex items-center gap-1.5">
+                {metrics.isStreaming ? (
+                  <>
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
+                    <span className="text-[9px] uppercase tracking-wider text-emerald-600 font-bold">streaming</span>
+                  </>
+                ) : (
+                  <>
+                    <Check size={11} className="text-emerald-500 font-bold" />
+                    <span className="text-[9px] uppercase tracking-wider text-gray-400 font-semibold">complete</span>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Prompt Bar */}
           <div className="w-full">
             <PromptBar
@@ -361,41 +397,6 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
           </p>
         </div>
       </div>
-      {/* Floating stationary Token Metrics Pill */}
-      {metrics.tokenCount > 0 && !isEmpty && (
-        <div className="absolute bottom-6 left-6 z-20 flex items-center gap-3 bg-white/90 backdrop-blur-md border border-gray-200 px-4 py-2 rounded-full shadow-lg transition-all duration-300 pointer-events-auto">
-          <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium">
-            <Zap size={13} className="text-amber-500 animate-pulse" />
-            <span className="tabular-nums font-mono">{metrics.tokenCount}</span>
-            <span className="text-gray-400">tokens</span>
-          </div>
-          <div className="w-px h-3 bg-gray-200" />
-          <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium">
-            <span className="tabular-nums font-mono">{metrics.tokensPerSecond}</span>
-            <span className="text-gray-400">tok/s</span>
-          </div>
-          <div className="w-px h-3 bg-gray-200" />
-          <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium">
-            <span className="text-gray-400">avg</span>
-            <span className="tabular-nums font-mono">{metrics.avgTps}</span>
-            <span className="text-gray-400">tok/s</span>
-          </div>
-          <div className="w-px h-3 bg-gray-200" />
-          <div className="flex items-center gap-1.5">
-            {metrics.isStreaming ? (
-              <>
-                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
-                <span className="text-[10px] uppercase tracking-wider text-emerald-600 font-bold">streaming</span>
-              </>
-            ) : (
-              <>
-                <Check size={13} className="text-emerald-500 font-bold" />
-                <span className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">complete</span>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
