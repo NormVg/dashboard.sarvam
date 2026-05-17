@@ -1,8 +1,5 @@
-import styles from "./dashboard.module.css";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return (
-    <div className={`${styles.workspace} overflow-hidden`}>
-    </div>
-  );
+  redirect("/playground");
 }
