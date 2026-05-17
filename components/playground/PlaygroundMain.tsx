@@ -7,7 +7,7 @@ import { ReasoningBlock } from "./ReasoningBlock";
 import { Settings2, Copy, Check, CornerDownLeft, Zap, AlertTriangle, Aperture } from "lucide-react";
 import { streamSarvamChat } from "../../lib/sarvam-api";
 import { streamOllamaChat, fetchOllamaModelCapabilities, OllamaCapabilities } from "../../lib/ollama-api";
-import { PlaygroundConfig } from "@/types/playground";
+import { PlaygroundConfig, StreamMetrics } from "@/types/playground";
 import { playUISound } from "@thenormvg/web-have-sounds";
 
 interface PlaygroundMainProps {
@@ -26,14 +26,6 @@ interface PlaygroundMessage {
   replyTo?: string;  // the quoted text shown in the bubble
 }
 
-export interface StreamMetrics {
-  tokenCount: number;
-  tokensPerSecond: number;
-  avgTps: number;
-  startTime: number;
-  isStreaming: boolean;
-  tpsSamples: number[];
-}
 
 const API_URL = "/api/chat";
 

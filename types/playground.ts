@@ -23,3 +23,12 @@ export const DEFAULT_PLAYGROUND_CONFIG: PlaygroundConfig = {
   systemInstruction: "",
   simulatedError: "none",
 };
+
+export interface StreamMetrics {
+  tokenCount: number;
+  tokensPerSecond: number;
+  avgTps: number;
+  startTime: number;
+  isStreaming: boolean;
+  tpsSamples: number[];
+}

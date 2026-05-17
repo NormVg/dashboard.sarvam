@@ -1,39 +1,50 @@
-import { PageHeader } from "@/components/ui/PageHeader";
-import { ComparePanel } from "@/components/diff/ComparePanel";
-import { GitCompare, Download } from "lucide-react";
+"use client";
+
+import { useState, useEffect } from "react";
+import { DiffMain } from "@/components/diff/DiffMain";
+import { GitCompare } from "lucide-react";
 import styles from "../dashboard.module.css";
+import { DEFAULT_PLAYGROUND_CONFIG } from "@/types/playground";
 
 export default function DiffViewPage() {
+  const [apiKey, setApiKey] = useState("");
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    // Re-use the API key from the playground config if available
+    try {
+      const saved = localStorage.getItem("sarvam_playground_config");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.apiKey) setApiKey(parsed.apiKey);
+      }
+    } catch {}
+    setIsLoaded(true);
+  }, []);
+
+  if (!isLoaded) return <div className="flex-1 bg-white h-full" />;
+
   return (
     <div className={`${styles.workspace} flex flex-col`}>
-      <PageHeader 
-        title="Model Output Diff" 
-        description="Compare outputs between different models or prompt iterations."
-        actions={
-          <>
-            <button className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full flex items-center gap-2 hover:bg-gray-50 transition-colors shadow-sm">
-              <Download size={16} className="text-gray-400" />
-              Export
-            </button>
-            <button className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-full flex items-center gap-2 hover:bg-indigo-700 transition-colors shadow-sm">
-              <GitCompare size={16} />
-              Run Comparison
-            </button>
-          </>
-        }
-      />
-      <div className="flex-1 flex overflow-hidden bg-gray-50">
-        <ComparePanel 
-          title="Baseline (Production)" 
-          modelName="Sarvam Base" 
-          content="const output = await model.generate(prompt);" 
-          isChanged={true} 
-        />
-        <ComparePanel 
-          title="Candidate (Staging)" 
-          modelName="Sarvam 105B Instruct" 
-          content="const output = await client.completions.create({ prompt });" 
-          isChanged={true} 
+      {/* ——— Page Header ——— */}
+      <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-gray-900 flex items-center justify-center">
+            <GitCompare size={15} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-[15px] font-semibold text-gray-900">Model Output Diff</h1>
+            <p className="text-xs text-gray-500">Compare outputs from two model configurations on the same prompt</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ——— Diff Interface ——— */}
+      <div className="flex-1 flex flex-col overflow-hidden bg-white">
+        <DiffMain
+          apiKey={apiKey}
+          initialConfigA={{ ...DEFAULT_PLAYGROUND_CONFIG, model: "sarvam-105b", provider: "sarvam" }}
+          initialConfigB={{ ...DEFAULT_PLAYGROUND_CONFIG, model: "sarvam-30b", provider: "sarvam" }}
         />
       </div>
     </div>
