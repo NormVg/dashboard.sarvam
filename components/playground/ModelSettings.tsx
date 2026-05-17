@@ -1,20 +1,106 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Info, ChevronDown, Code2, RotateCcw, X, Copy, Check } from "lucide-react";
 import { PlaygroundConfig, DEFAULT_PLAYGROUND_CONFIG } from "@/types/playground";
 import { playUISound } from "@thenormvg/web-have-sounds";
+import { fetchOllamaModels, OllamaCapabilities } from "../../lib/ollama-api";
 
 interface ModelSettingsProps {
   isOpen: boolean;
   onClose: () => void;
   config: PlaygroundConfig;
   onChange: (config: PlaygroundConfig) => void;
+  ollamaCaps?: OllamaCapabilities;
 }
 
-export function ModelSettings({ isOpen, onClose, config, onChange }: ModelSettingsProps) {
+export function ModelSettings({ isOpen, onClose, config, onChange, ollamaCaps }: ModelSettingsProps) {
   const [showCode, setShowCode] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [ollamaModels, setOllamaModels] = useState<string[]>([]);
+  const [isFetchingModels, setIsFetchingModels] = useState(false);
+  const [modelError, setModelError] = useState<string | null>(null);
+
+  const handleFetchOllamaModels = async () => {
+    setIsFetchingModels(true);
+    setModelError(null);
+    try {
+      const models = await fetchOllamaModels({ url: config.ollamaUrl ?? "http://localhost:11434" });
+      setOllamaModels(models);
+      if (models.length > 0 && !models.includes(config.model)) {
+        onChange({ ...config, model: models[0] });
+      }
+    } catch (err: any) {
+      setModelError(err.message || "Failed to fetch models");
+    } finally {
+      setIsFetchingModels(false);
+    }
+  };
+
+  // Auto-fetch Ollama models on mount
+  useEffect(() => {
+    handleFetchOllamaModels();
+  }, []);
 
   const getCodeSnippet = () => {
+    if (config.provider === "ollama") {
+      const ollamaUrl = (config.ollamaUrl ?? "http://localhost:11434").replace(/\/$/, "");
+      return `const OLLAMA_URL = "${ollamaUrl}/api/chat";
+
+async function chatOllamaStream() {
+    const response = await fetch(OLLAMA_URL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            "model": "${config.model}",
+            "messages": [
+                ${config.systemInstruction.trim() ? `{\n                    "role": "system",\n                    "content": ${JSON.stringify(config.systemInstruction.trim())}\n                },\n                ` : ""}{
+                    "role": "user",
+                    "content": "<YOUR_MESSAGE>"
+                }
+            ],
+            "stream": true,
+            "options": {
+                "temperature": ${config.temperature},
+                "top_p": ${config.topP},
+                "num_predict": ${config.maxTokens}
+            }
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(\`HTTP error! status: \${response.status}\`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            
+            const chunk = JSON.parse(trimmed);
+            if (chunk.message?.content) {
+                process.stdout.write(chunk.message.content);
+            }
+        }
+    }
+
+    console.log(); // newline at end
+}
+
+chatOllamaStream();`;
+    }
+
     return `const API_KEY = "YOUR_API_SUBSCRIPTION_KEY";
 const API_URL = "https://api.sarvam.ai/v1/chat/completions";
 
@@ -130,31 +216,140 @@ chatCompletionsStream();`;
           </div>
         </div>
 
-        <div className="p-5 flex flex-col gap-6 shrink-0">
+        <div className="p-5 flex flex-col gap-6 shrink-0 pb-10">
+
+          {/* Provider Selection */}
+          <div>
+            <label className="text-[14px] font-medium text-gray-700 block mb-2">Provider</label>
+            <div className="flex bg-gray-100 p-1 rounded-xl">
+              <button
+                onClick={() => {
+                  playUISound("pop", "aero");
+                  onChange({ ...config, provider: "sarvam", model: "sarvam-105b" });
+                }}
+                className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-all ${
+                  config.provider === "sarvam" 
+                    ? "bg-white text-gray-900 shadow-sm" 
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Sarvam AI
+              </button>
+              <button
+                onClick={() => {
+                  playUISound("pop", "aero");
+                  onChange({ ...config, provider: "ollama", model: ollamaModels[0] || "" });
+                }}
+                className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-all ${
+                  config.provider === "ollama" 
+                    ? "bg-white text-gray-900 shadow-sm" 
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Local Ollama
+              </button>
+            </div>
+            {config.provider === "ollama" && (
+              <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3 flex flex-col gap-2">
+                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Run Ollama with CORS enabled</p>
+                <div className="flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                  <code className="text-[12px] font-mono text-gray-700 select-all leading-none">
+                    OLLAMA_ORIGINS="*" ollama serve
+                  </code>
+                  <button
+                    onClick={() => {
+                      playUISound("success", "glass");
+                      navigator.clipboard.writeText('OLLAMA_ORIGINS="*" ollama serve');
+                    }}
+                    className="flex-shrink-0 p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                    title="Copy command"
+                    aria-label="Copy Ollama command"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="w-full h-[1px] bg-gray-200"></div>
+
+          {/* Ollama URL Input */}
+          {config.provider === "ollama" && (
+            <>
+              <div>
+                <label className="text-[14px] font-medium text-gray-700 block mb-2">Ollama URL</label>
+                <div className="flex items-center gap-2 w-full">
+                  <input
+                    type="text"
+                    value={config.ollamaUrl ?? "http://localhost:11434"}
+                    onChange={(e) => onChange({ ...config, ollamaUrl: e.target.value })}
+                    placeholder="http://localhost:11434"
+                    className="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+                  />
+                  <button
+                    onClick={() => {
+                      playUISound("click", "aero");
+                      handleFetchOllamaModels();
+                    }}
+                    disabled={isFetchingModels}
+                    className="flex-shrink-0 px-3 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {isFetchingModels ? "Fetching..." : "Refresh"}
+                  </button>
+                </div>
+                {modelError && (
+                  <p className="text-xs text-red-500 mt-2">{modelError}</p>
+                )}
+              </div>
+              <div className="w-full h-[1px] bg-gray-200"></div>
+            </>
+          )}
 
           {/* Model Selection */}
           <div>
             <label className="text-[14px] font-medium text-gray-700 block mb-2">Model</label>
             <div className="relative">
-              <select
-                value={config.model}
-                onChange={(e) => {
-                  playUISound("pop", "aero");
-                  onChange({ ...config, model: e.target.value });
-                }}
-                className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 shadow-sm cursor-pointer"
-                aria-label="Select Model"
-              >
-                <option value="sarvam-105b">Sarvam 105B</option>
-                <option value="sarvam-30b">Sarvam 30B</option>
-              </select>
+              {config.provider === "sarvam" ? (
+                <select
+                  value={config.model}
+                  onChange={(e) => {
+                    playUISound("pop", "aero");
+                    onChange({ ...config, model: e.target.value });
+                  }}
+                  className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 shadow-sm cursor-pointer"
+                  aria-label="Select Model"
+                >
+                  <option value="sarvam-105b">Sarvam 105B</option>
+                  <option value="sarvam-30b">Sarvam 30B</option>
+                </select>
+              ) : (
+                <select
+                  value={config.model}
+                  onChange={(e) => {
+                    playUISound("pop", "aero");
+                    onChange({ ...config, model: e.target.value });
+                  }}
+                  className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 shadow-sm cursor-pointer"
+                  aria-label="Select Ollama Model"
+                >
+                  {ollamaModels.length === 0 && <option value="">No models found</option>}
+                  {ollamaModels.map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              )}
               <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
-            <p className="text-xs text-gray-400 mt-2">
-              {config.model === "sarvam-105b"
-                ? "Most intelligent model, best for complex logic."
-                : "Faster model, great for standard queries."}
-            </p>
+            {config.provider === "sarvam" && (
+              <p className="text-xs text-gray-400 mt-2">
+                {config.model === "sarvam-105b"
+                  ? "Most intelligent model, best for complex logic."
+                  : "Faster model, great for standard queries."}
+              </p>
+            )}
           </div>
 
           <div className="w-full h-[1px] bg-gray-200"></div>
@@ -224,28 +419,80 @@ chatCompletionsStream();`;
             />
           </div>
 
-          {/* Thinking Level / Reasoning Effort */}
-          <div>
-            <label className="text-[14px] font-medium text-gray-700 block mb-2">Reasoning effort</label>
-            <div className="relative">
-              <select
-                value={config.reasoningEffort}
-                onChange={(e) => {
-                  playUISound("pop", "aero");
-                  onChange({ ...config, reasoningEffort: e.target.value as any });
-                }}
-                className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 shadow-sm cursor-pointer"
-                aria-label="Reasoning Effort"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
-              <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            </div>
-          </div>
+          {/* Thinking Level / Reasoning Effort - Only for Sarvam */}
+          {config.provider === "sarvam" && (
+            <>
+              <div>
+                <label className="text-[14px] font-medium text-gray-700 block mb-2">Reasoning effort</label>
+                <div className="relative">
+                  <select
+                    value={config.reasoningEffort}
+                    onChange={(e) => {
+                      playUISound("pop", "aero");
+                      onChange({ ...config, reasoningEffort: e.target.value as any });
+                    }}
+                    className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 shadow-sm cursor-pointer"
+                    aria-label="Reasoning Effort"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                  <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+              <div className="w-full h-[1px] bg-gray-200"></div>
+            </>
+          )}
 
-          <div className="w-full h-[1px] bg-gray-200"></div>
+          {/* Ollama Model Capabilities */}
+          {config.provider === "ollama" && ollamaCaps && (ollamaCaps.vision || ollamaCaps.thinking) && (
+            <>
+              <div>
+                <label className="text-[14px] font-medium text-gray-700 block mb-1.5">Model capabilities</label>
+                <p className="text-xs text-gray-400 mb-3">Auto-detected features for {config.model}.</p>
+
+                {/* Thinking toggle */}
+                {ollamaCaps.thinking && (
+                  <div className="flex items-center justify-between py-2.5 px-3 bg-white border border-gray-200 rounded-xl mb-2">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-sm font-medium text-gray-800">Thinking</span>
+                      <span className="text-[11px] text-gray-400">DeepSeek R1 / QwQ architecture detected.</span>
+                    </div>
+                    <button
+                      role="switch"
+                      aria-checked={config.ollamaThinking ?? false}
+                      onClick={() => {
+                        playUISound("pop", "aero");
+                        onChange({ ...config, ollamaThinking: !(config.ollamaThinking ?? false) });
+                      }}
+                      className={`relative w-10 h-5.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 flex-shrink-0 ${
+                        (config.ollamaThinking ?? false) ? "bg-gray-900" : "bg-gray-200"
+                      }`}
+                      style={{ height: "22px", width: "40px" }}
+                    >
+                      <span
+                        className="absolute top-0.5 left-0.5 w-[18px] h-[18px] bg-white rounded-full shadow-sm transition-transform duration-200"
+                        style={{ transform: (config.ollamaThinking ?? false) ? "translateX(18px)" : "translateX(0)" }}
+                      />
+                    </button>
+                  </div>
+                )}
+
+                {/* Vision note */}
+                {ollamaCaps.vision && (
+                  <div className="flex items-center gap-2.5 py-2.5 px-3 bg-white border border-gray-200 rounded-xl">
+                    <div className="flex flex-col gap-0.5 flex-1">
+                      <span className="text-sm font-medium text-gray-800">Vision</span>
+                      <span className="text-[11px] text-gray-400">Multimodal architecture detected.</span>
+                    </div>
+                    <span className="text-[11px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Use 📎 in chat</span>
+                  </div>
+                )}
+              </div>
+              <div className="w-full h-[1px] bg-gray-200"></div>
+            </>
+          )}
 
           {/* Error Simulation */}
           <div>

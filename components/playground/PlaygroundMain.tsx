@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { PromptBar } from "./PromptBar";
+import { PromptBar, AttachedFile } from "./PromptBar";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { ReasoningBlock } from "./ReasoningBlock";
-import { Settings2, Copy, Check, CornerDownLeft, Zap, AlertTriangle } from "lucide-react";
+import { Settings2, Copy, Check, CornerDownLeft, Zap, AlertTriangle, Aperture } from "lucide-react";
 import { streamSarvamChat } from "../../lib/sarvam-api";
+import { streamOllamaChat, fetchOllamaModelCapabilities, OllamaCapabilities } from "../../lib/ollama-api";
 import { PlaygroundConfig } from "@/types/playground";
 import { playUISound } from "@thenormvg/web-have-sounds";
 
@@ -13,6 +14,7 @@ interface PlaygroundMainProps {
   isSettingsOpen: boolean;
   onOpenSettings: () => void;
   config: PlaygroundConfig;
+  ollamaCaps: OllamaCapabilities;
 }
 
 interface PlaygroundMessage {
@@ -20,6 +22,8 @@ interface PlaygroundMessage {
   content: string;
   reasoning?: string;
   error?: string;
+  images?: string[]; // data URLs for display
+  replyTo?: string;  // the quoted text shown in the bubble
 }
 
 export interface StreamMetrics {
@@ -33,9 +37,10 @@ export interface StreamMetrics {
 
 const API_URL = "/api/chat";
 
-export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: PlaygroundMainProps) {
+export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaCaps }: PlaygroundMainProps) {
   const [messages, setMessages] = useState<PlaygroundMessage[]>([]);
   const [input, setInput] = useState("");
+  const [replyTo, setReplyTo] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [metrics, setMetrics] = useState<StreamMetrics>({
@@ -84,8 +89,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
 
   const handleReply = useCallback((content: string) => {
     playUISound("pop", "aero");
-    const firstLine = content.split("\n")[0].slice(0, 100);
-    setInput(`> ${firstLine}\n\n`);
+    setReplyTo(content);
   }, []);
 
   const runSimulatedError = async (
@@ -247,12 +251,25 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
     }
   };
 
-  const handleSubmit = async () => {
-    if (!input.trim()) return;
+  const handleSubmit = async (attachments?: AttachedFile[]) => {
+    if (!input.trim() && !replyTo && (!attachments || attachments.length === 0)) return;
 
-    const userMessage: PlaygroundMessage = { role: "user", content: input };
+    // Build the final message content (plain text for the API)
+    const userContent = input.trim();
+    const userMessage: PlaygroundMessage = {
+      role: "user",
+      content: userContent,
+      replyTo: replyTo ? replyTo.split("\n")[0].slice(0, 120) : undefined,
+      images: attachments?.map((a) => a.previewUrl),
+    };
+
+    // Build API messages — include reply as a quote prefix in the API content
+    const apiContent = replyTo
+      ? `> ${replyTo.split("\n")[0].slice(0, 120)}\n\n${userContent}`
+      : userContent;
     setMessages((prev) => [...prev, userMessage, { role: "assistant", content: "" }]);
     setInput("");
+    setReplyTo(null);
     setIsLoading(true);
     isUserScrolledUpRef.current = false; // Reset on new message
 
@@ -267,10 +284,13 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
         if (lastIdx < 0) return prev;
         const last = prev[lastIdx];
         if (last.role !== "assistant") return prev;
-        // Keep existing content and reasoning, set error field
         return [...prev.slice(0, lastIdx), { ...last, error: error.message }];
       });
     };
+
+    // Build API-level messages (reply quoted inline)
+    const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
+    const apiUserMessage = { role: "user" as const, content: apiContent };
 
     // If simulation is enabled, run custom simulation stream
     if (config.simulatedError && config.simulatedError !== "none") {
@@ -289,74 +309,105 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
     }, 2000);
 
     try {
-      const apiKey = (process.env.NEXT_PUBLIC_SARVAM_API_KEY ?? "").trim();
-      if (!apiKey) {
-        throw new Error("No API key configured. Please set NEXT_PUBLIC_SARVAM_API_KEY in your environment.");
-      }
-
       abortControllerRef.current = new AbortController();
 
       const requestMessages: PlaygroundMessage[] = [];
       if (config.systemInstruction.trim()) {
         requestMessages.push({ role: "system", content: config.systemInstruction.trim() });
       }
-      requestMessages.push(...messages, userMessage);
+      requestMessages.push(...apiMessages, apiUserMessage);
 
-      await streamSarvamChat({
-        messages: requestMessages,
-        apiKey,
-        model: config.model,
-        temperature: config.temperature,
-        maxTokens: config.maxTokens,
-        topP: config.topP,
-        reasoningEffort: config.reasoningEffort,
-        signal: abortControllerRef.current.signal,
-        onReasoningChunk: (reasoningContent) => {
-          lastChunkTime = performance.now();
-          setMessages((prev) => {
-            const lastIdx = prev.length - 1;
-            const last = prev[lastIdx];
-            if (last.role !== "assistant") return prev;
-            return [
-              ...prev.slice(0, lastIdx), 
-              { ...last, reasoning: (last.reasoning || "") + reasoningContent }
-            ];
-          });
-        },
-        onChunk: (content) => {
-          lastChunkTime = performance.now();
-          const newTokens = content.split(/[\s]+/).filter(Boolean).length || 1;
-          tokenCountRef.current += newTokens;
-          const elapsed = (performance.now() - startTimeRef.current) / 1000;
-          const tps = elapsed > 0 ? tokenCountRef.current / elapsed : 0;
+      const handleChunk = (content: string) => {
+        lastChunkTime = performance.now();
+        const newTokens = content.split(/[\s]+/).filter(Boolean).length || 1;
+        tokenCountRef.current += newTokens;
+        const elapsed = (performance.now() - startTimeRef.current) / 1000;
+        const tps = elapsed > 0 ? tokenCountRef.current / elapsed : 0;
 
-          setMetrics((prev) => {
-            const samples = [...prev.tpsSamples, tps].slice(-20); // keep last 20
-            const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
-            return {
-              tokenCount: tokenCountRef.current,
-              tokensPerSecond: Math.round(tps * 10) / 10,
-              avgTps: Math.round(avg * 10) / 10,
-              startTime: startTimeRef.current,
-              isStreaming: true,
-              tpsSamples: samples,
-            };
-          });
+        setMetrics((prev) => {
+          const samples = [...prev.tpsSamples, tps].slice(-20); // keep last 20
+          const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
+          return {
+            tokenCount: tokenCountRef.current,
+            tokensPerSecond: Math.round(tps * 10) / 10,
+            avgTps: Math.round(avg * 10) / 10,
+            startTime: startTimeRef.current,
+            isStreaming: true,
+            tpsSamples: samples,
+          };
+        });
 
-          setMessages((prev) => {
-            const lastIdx = prev.length - 1;
-            const last = prev[lastIdx];
-            if (last.role !== "assistant") return prev;
-            return [...prev.slice(0, lastIdx), { ...last, content: last.content + content }];
-          });
-        },
-        onError: (error) => {
-          handleStreamError(error);
-        },
-        onFinish: () => {
-          // Additional finish logic if needed
+        setMessages((prev) => {
+          const lastIdx = prev.length - 1;
+          const last = prev[lastIdx];
+          if (last.role !== "assistant") return prev;
+          return [...prev.slice(0, lastIdx), { ...last, content: last.content + content }];
+        });
+      };
+
+      if (config.provider === "ollama") {
+        if (!config.ollamaUrl) {
+          throw new Error("Ollama URL is not configured. Please set it in the settings.");
         }
-      });
+        await streamOllamaChat({
+          url: config.ollamaUrl,
+          messages: requestMessages,
+          model: config.model,
+          temperature: config.temperature,
+          maxTokens: config.maxTokens,
+          topP: config.topP,
+          images: attachments?.map((a) => a.base64),
+          think: config.ollamaThinking ?? false,
+          signal: abortControllerRef.current.signal,
+          onReasoningChunk: (reasoningContent) => {
+            lastChunkTime = performance.now();
+            setMessages((prev) => {
+              const lastIdx = prev.length - 1;
+              const last = prev[lastIdx];
+              if (last.role !== "assistant") return prev;
+              return [
+                ...prev.slice(0, lastIdx),
+                { ...last, reasoning: (last.reasoning || "") + reasoningContent },
+              ];
+            });
+          },
+          onChunk: handleChunk,
+          onError: handleStreamError,
+          onFinish: () => {}
+        });
+      } else {
+        const apiKey = (process.env.NEXT_PUBLIC_SARVAM_API_KEY ?? "").trim();
+        if (!apiKey) {
+          throw new Error("No API key configured. Please set NEXT_PUBLIC_SARVAM_API_KEY in your environment.");
+        }
+        await streamSarvamChat({
+          messages: requestMessages,
+          apiKey,
+          model: config.model,
+          temperature: config.temperature,
+          maxTokens: config.maxTokens,
+          topP: config.topP,
+          reasoningEffort: config.reasoningEffort,
+          signal: abortControllerRef.current.signal,
+          onReasoningChunk: (reasoningContent) => {
+            lastChunkTime = performance.now();
+            setMessages((prev) => {
+              const lastIdx = prev.length - 1;
+              const last = prev[lastIdx];
+              if (last.role !== "assistant") return prev;
+              return [
+                ...prev.slice(0, lastIdx), 
+                { ...last, reasoning: (last.reasoning || "") + reasoningContent }
+              ];
+            });
+          },
+          onChunk: handleChunk,
+          onError: handleStreamError,
+          onFinish: () => {}
+        });
+      }
+
+
     } catch (error: any) {
       if (error.name !== "AbortError") {
         handleStreamError(error);
@@ -413,13 +464,41 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
               return (
                 <div key={i} className={`group flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                   <div className="flex flex-col max-w-[85%]">
-                    {/* Message bubble */}
+                    {/* User bubble */}
+                    {msg.role === "user" ? (
+                      <div className="flex flex-col items-end gap-1.5">
+                        {/* Reply quote strip */}
+                        {msg.replyTo && (
+                          <div className="flex items-start gap-2 bg-gray-100 rounded-2xl rounded-br-sm px-3 py-2 max-w-full">
+                            <div className="w-0.5 self-stretch bg-gray-400 rounded-full flex-shrink-0" />
+                            <p className="text-[12px] text-gray-500 leading-snug line-clamp-2 min-w-0">
+                              {msg.replyTo}
+                            </p>
+                          </div>
+                        )}
+                        {/* Image thumbnails */}
+                        {msg.images && msg.images.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 justify-end">
+                            {msg.images.map((src, idx) => (
+                              <img
+                                key={idx}
+                                src={src}
+                                alt={`attachment ${idx + 1}`}
+                                className="w-20 h-20 object-cover rounded-xl border border-gray-200"
+                              />
+                            ))}
+                          </div>
+                        )}
+                        {/* Text bubble */}
+                        {msg.content && (
+                          <div className="bg-[#F4F4F4] text-gray-900 rounded-[1.25rem] rounded-br-md px-4 py-3 text-[15px]">
+                            {msg.content}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
                     <div
-                      className={`relative text-[15px] ${
-                        msg.role === "user"
-                          ? "bg-[#F4F4F4] text-gray-900 rounded-[1.25rem] rounded-br-md px-4 py-3"
-                          : "text-gray-800"
-                      }`}
+                      className="relative text-[15px] text-gray-800"
                     >
                       {msg.content || msg.reasoning || msg.error ? (
                         <div className="relative">
@@ -445,15 +524,14 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
                           )}
                         </div>
                       ) : (
-                        <span className="inline-flex items-center gap-1 py-1">
-                          <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
-                          <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
-                          <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
+                        <span className="inline-flex items-center py-1">
+                          <Aperture size={16} className="spin-spring text-gray-400" />
                         </span>
                       )}
                     </div>
+                    )}
 
-                    {/* Action buttons & Metrics */}
+                    {/* Action buttons & Metrics — assistant only */}
                     {msg.content && isAssistant && (
                       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-1.5 justify-start">
                         {/* Action buttons — visible when complete */}
@@ -578,6 +656,9 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
               disabled={isLoading}
               isStreaming={isLoading}
               variant={isEmpty ? "empty" : "thread"}
+              replyTo={replyTo}
+              onClearReply={() => setReplyTo(null)}
+              allowAttachments={config.provider === "ollama" && ollamaCaps.vision}
             />
           </div>
 

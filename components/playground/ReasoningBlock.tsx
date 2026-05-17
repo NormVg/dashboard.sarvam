@@ -37,10 +37,9 @@ export function ReasoningBlock({ content, isStreaming }: ReasoningBlockProps) {
         onClick={() => setIsExpanded(!isExpanded)}
         className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
       >
-        <Aperture 
-          size={16} 
-          className={isStreaming ? "animate-spin" : ""} 
-          style={isStreaming ? { animationDuration: '3s' } : undefined} 
+        <Aperture
+          size={16}
+          className={isStreaming ? "spin-spring" : ""}
         />
         <span className="font-medium text-[13px]">
           {isStreaming ? `Thinking (${duration}s)...` : `Thought for ${duration}s`}

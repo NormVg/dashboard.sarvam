@@ -5,11 +5,20 @@ import { PlaygroundMain } from "@/components/playground/PlaygroundMain";
 import { ModelSettings } from "@/components/playground/ModelSettings";
 import styles from "../dashboard.module.css";
 import { PlaygroundConfig, DEFAULT_PLAYGROUND_CONFIG } from "@/types/playground";
+import { fetchOllamaModelCapabilities, OllamaCapabilities } from "@/lib/ollama-api";
 
 export default function PlaygroundPage() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(true);
   const [config, setConfig] = useState<PlaygroundConfig>(DEFAULT_PLAYGROUND_CONFIG);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [ollamaCaps, setOllamaCaps] = useState<OllamaCapabilities>({ vision: false, thinking: false });
+
+  // Update Ollama capabilities when the selected model changes
+  useEffect(() => {
+    if (config.provider === "ollama" && config.model) {
+      fetchOllamaModelCapabilities(config.ollamaUrl, config.model).then(setOllamaCaps);
+    }
+  }, [config.provider, config.model, config.ollamaUrl]);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -52,12 +61,14 @@ export default function PlaygroundPage() {
           isSettingsOpen={isSettingsOpen} 
           onOpenSettings={() => handleSettingsOpenChange(true)} 
           config={config}
+          ollamaCaps={ollamaCaps}
         />
         <ModelSettings 
           isOpen={isSettingsOpen} 
           onClose={() => handleSettingsOpenChange(false)} 
           config={config}
           onChange={handleConfigChange}
+          ollamaCaps={ollamaCaps}
         />
       </div>
     </div>
