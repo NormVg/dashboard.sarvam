@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { PromptBar } from "./PromptBar";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { ReasoningBlock } from "./ReasoningBlock";
-import { Settings2, Copy, Check, CornerDownLeft, Zap } from "lucide-react";
+import { Settings2, Copy, Check, CornerDownLeft, Zap, AlertTriangle } from "lucide-react";
 import { streamSarvamChat } from "../../lib/sarvam-api";
 import { PlaygroundConfig } from "@/types/playground";
 
@@ -18,6 +18,7 @@ interface PlaygroundMessage {
   role: "user" | "assistant" | "system";
   content: string;
   reasoning?: string;
+  error?: string;
 }
 
 export interface StreamMetrics {
@@ -98,10 +99,31 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
     startTimeRef.current = performance.now();
     setMetrics({ tokenCount: 0, tokensPerSecond: 0, avgTps: 0, startTime: performance.now(), isStreaming: true, tpsSamples: [] });
 
+    let lastChunkTime = performance.now();
+    const checkInactivity = setInterval(() => {
+      const elapsed = (performance.now() - lastChunkTime) / 1000;
+      if (elapsed > 20) { // 20 second inactivity timeout
+        clearInterval(checkInactivity);
+        abortControllerRef.current?.abort();
+        handleStreamError(new Error("Request timed out: No data was received from the model for over 20 seconds. Please check your connection and try again."));
+      }
+    }, 2000);
+
+    const handleStreamError = (error: Error) => {
+      setMessages((prev) => {
+        const lastIdx = prev.length - 1;
+        if (lastIdx < 0) return prev;
+        const last = prev[lastIdx];
+        if (last.role !== "assistant") return prev;
+        // Keep existing content and reasoning, set error field
+        return [...prev.slice(0, lastIdx), { ...last, error: error.message }];
+      });
+    };
+
     try {
       const apiKey = (process.env.NEXT_PUBLIC_SARVAM_API_KEY ?? "").trim();
       if (!apiKey) {
-        throw new Error("No API key configured");
+        throw new Error("No API key configured. Please set NEXT_PUBLIC_SARVAM_API_KEY in your environment.");
       }
 
       abortControllerRef.current = new AbortController();
@@ -122,6 +144,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
         reasoningEffort: config.reasoningEffort,
         signal: abortControllerRef.current.signal,
         onReasoningChunk: (reasoningContent) => {
+          lastChunkTime = performance.now();
           setMessages((prev) => {
             const lastIdx = prev.length - 1;
             const last = prev[lastIdx];
@@ -133,6 +156,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
           });
         },
         onChunk: (content) => {
+          lastChunkTime = performance.now();
           const newTokens = content.split(/[\s]+/).filter(Boolean).length || 1;
           tokenCountRef.current += newTokens;
           const elapsed = (performance.now() - startTimeRef.current) / 1000;
@@ -159,28 +183,18 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
           });
         },
         onError: (error) => {
-          setMessages((prev) => {
-            const lastIdx = prev.length - 1;
-            const last = prev[lastIdx];
-            if (last.role !== "assistant") return prev;
-            return [...prev.slice(0, lastIdx), { ...last, content: `Error: ${error.message}` }];
-          });
+          handleStreamError(error);
         },
         onFinish: () => {
           // Additional finish logic if needed
         }
       });
     } catch (error: any) {
-      // Errors are mostly handled in onError above, except thrown synchronous errors
       if (error.name !== "AbortError") {
-        setMessages((prev) => {
-          const lastIdx = prev.length - 1;
-          const last = prev[lastIdx];
-          if (last.role !== "assistant") return prev;
-          return [...prev.slice(0, lastIdx), { ...last, content: `Error: ${error.message}` }];
-        });
+        handleStreamError(error);
       }
     } finally {
+      clearInterval(checkInactivity);
       abortControllerRef.current = null;
       setIsLoading(false);
       setMetrics((prev) => ({ ...prev, isStreaming: false }));
@@ -235,7 +249,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
                           : "text-gray-800"
                       }`}
                     >
-                      {msg.content || msg.reasoning ? (
+                      {msg.content || msg.reasoning || msg.error ? (
                         <div className="relative">
                           {msg.reasoning && (
                             <ReasoningBlock 
@@ -243,7 +257,16 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config }: Playg
                               isStreaming={isStreamingThis && !msg.content}
                             />
                           )}
-                          <MarkdownRenderer content={msg.content} />
+                          {msg.content && <MarkdownRenderer content={msg.content} />}
+                          {msg.error && (
+                            <div className="mt-3 flex items-start gap-2.5 text-red-700 bg-red-50/50 border border-red-100 rounded-xl p-3.5 text-[13px] leading-relaxed select-none">
+                              <AlertTriangle size={15} className="mt-0.5 flex-shrink-0 text-red-500" />
+                              <div className="flex-1">
+                                <span className="font-semibold block mb-0.5 text-red-800">Generation Interrupted</span>
+                                <span className="text-red-750/90">{msg.error}</span>
+                              </div>
+                            </div>
+                          )}
                           {/* Streaming blur edge effect */}
                           {isStreamingThis && (
                             <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none" />

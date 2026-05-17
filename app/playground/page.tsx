@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PlaygroundMain } from "@/components/playground/PlaygroundMain";
 import { ModelSettings } from "@/components/playground/ModelSettings";
 import styles from "../dashboard.module.css";
@@ -9,20 +9,55 @@ import { PlaygroundConfig, DEFAULT_PLAYGROUND_CONFIG } from "@/types/playground"
 export default function PlaygroundPage() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(true);
   const [config, setConfig] = useState<PlaygroundConfig>(DEFAULT_PLAYGROUND_CONFIG);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const savedConfig = localStorage.getItem("sarvam_playground_config");
+    if (savedConfig) {
+      try {
+        setConfig(JSON.parse(savedConfig));
+      } catch (e) {
+        console.error("Failed to load playground config", e);
+      }
+    }
+
+    const savedOpen = localStorage.getItem("sarvam_playground_settings_open");
+    if (savedOpen !== null) {
+      setIsSettingsOpen(savedOpen === "true");
+    }
+    
+    setIsLoaded(true);
+  }, []);
+
+  const handleConfigChange = (newConfig: PlaygroundConfig) => {
+    setConfig(newConfig);
+    localStorage.setItem("sarvam_playground_config", JSON.stringify(newConfig));
+  };
+
+  const handleSettingsOpenChange = (open: boolean) => {
+    setIsSettingsOpen(open);
+    localStorage.setItem("sarvam_playground_settings_open", String(open));
+  };
+
+  // Prevent flash of defaults by rendering only when loaded (standard SSR safety)
+  if (!isLoaded) {
+    return <div className="flex-1 bg-white h-full" />;
+  }
 
   return (
     <div className={styles.workspace}>
       <div className="flex-1 flex flex-row h-full overflow-hidden w-full">
         <PlaygroundMain 
           isSettingsOpen={isSettingsOpen} 
-          onOpenSettings={() => setIsSettingsOpen(true)} 
+          onOpenSettings={() => handleSettingsOpenChange(true)} 
           config={config}
         />
         <ModelSettings 
           isOpen={isSettingsOpen} 
-          onClose={() => setIsSettingsOpen(false)} 
+          onClose={() => handleSettingsOpenChange(false)} 
           config={config}
-          onChange={setConfig}
+          onChange={handleConfigChange}
         />
       </div>
     </div>
