@@ -39,14 +39,12 @@ interface DiffMainProps {
   initialConfigA?: PlaygroundConfig;
   initialConfigB?: PlaygroundConfig;
   apiKey?: string;
-  ollamaModels?: string[];
 }
 
 export function DiffMain({
   initialConfigA,
   initialConfigB,
   apiKey = "",
-  ollamaModels: initialOllamaModels = [],
 }: DiffMainProps) {
   const [configA, setConfigA] = useState<PlaygroundConfig>(
     initialConfigA ?? { ...DEFAULT_PLAYGROUND_CONFIG, model: "sarvam-105b", provider: "sarvam" }
@@ -57,7 +55,6 @@ export function DiffMain({
   const [turns, setTurns] = useState<DiffTurn[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [ollamaModels, setOllamaModels] = useState<string[]>(initialOllamaModels);
 
   const abortA = useRef<AbortController | null>(null);
   const abortB = useRef<AbortController | null>(null);
@@ -280,7 +277,6 @@ export function DiffMain({
           config={configA}
           onConfigChange={setConfigA}
           turns={turns}
-          ollamaModels={ollamaModels}
         />
         <DiffColumn
           label="Model B"
@@ -288,7 +284,6 @@ export function DiffMain({
           config={configB}
           onConfigChange={setConfigB}
           turns={turns}
-          ollamaModels={ollamaModels}
         />
       </div>
 
