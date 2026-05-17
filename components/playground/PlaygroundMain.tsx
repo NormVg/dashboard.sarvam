@@ -71,8 +71,8 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
   // Only auto-scroll if user is near the bottom
   const scrollToBottom = useCallback(() => {
     if (isUserScrolledUpRef.current) return;
-    messagesEndRef.current?.scrollIntoView({ 
-      behavior: isLoading ? "auto" : "smooth" 
+    messagesEndRef.current?.scrollIntoView({
+      behavior: isLoading ? "auto" : "smooth"
     });
   }, [isLoading]);
 
@@ -93,7 +93,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
   }, []);
 
   const runSimulatedError = async (
-    type: "network" | "timeout" | "interrupted", 
+    type: "network" | "timeout" | "interrupted",
     onError: (err: Error) => void
   ) => {
     abortControllerRef.current = new AbortController();
@@ -102,14 +102,14 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
 
     const sleep = (ms: number) => new Promise<void>((resolve, reject) => {
       if (signal.aborted) return reject(new Error("AbortError"));
-      
+
       const timeout = setTimeout(resolve, ms);
-      
+
       const onAbort = () => {
         clearTimeout(timeout);
         reject(new Error("AbortError"));
       };
-      
+
       signal.addEventListener("abort", onAbort);
     });
 
@@ -126,7 +126,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
 
       for (const chunk of reasoningChunks) {
         if (signal.aborted) throw new Error("AbortError");
-        
+
         setMessages((prev) => {
           const lastIdx = prev.length - 1;
           const last = prev[lastIdx];
@@ -136,7 +136,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
             { ...last, reasoning: (last.reasoning || "") + chunk }
           ];
         });
-        
+
         await sleep(400);
       }
 
@@ -158,7 +158,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
           tokenCountRef.current = localTokenCount;
           const elapsed = (performance.now() - startTimeRef.current) / 1000;
           const tps = elapsed > 0 ? localTokenCount / elapsed : 0;
-          
+
           setMetrics((prev) => {
             const samples = [...prev.tpsSamples, tps].slice(-20);
             const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
@@ -204,7 +204,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
           tokenCountRef.current = localTokenCount;
           const elapsed = (performance.now() - startTimeRef.current) / 1000;
           const tps = elapsed > 0 ? localTokenCount / elapsed : 0;
-          
+
           setMetrics((prev) => {
             const samples = [...prev.tpsSamples, tps].slice(-20);
             const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
@@ -373,7 +373,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
           },
           onChunk: handleChunk,
           onError: handleStreamError,
-          onFinish: () => {}
+          onFinish: () => { }
         });
       } else {
         const apiKey = (process.env.NEXT_PUBLIC_SARVAM_API_KEY ?? "").trim();
@@ -396,14 +396,14 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
               const last = prev[lastIdx];
               if (last.role !== "assistant") return prev;
               return [
-                ...prev.slice(0, lastIdx), 
+                ...prev.slice(0, lastIdx),
                 { ...last, reasoning: (last.reasoning || "") + reasoningContent }
               ];
             });
           },
           onChunk: handleChunk,
           onError: handleStreamError,
-          onFinish: () => {}
+          onFinish: () => { }
         });
       }
 
@@ -452,9 +452,8 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
         className="flex-1 w-full overflow-y-auto pb-[240px]"
       >
         <div
-          className={`max-w-3xl w-full mx-auto px-6 pt-10 transition-opacity duration-300 ${
-            isEmpty ? "opacity-0 pointer-events-none" : "opacity-100"
-          }`}
+          className={`max-w-3xl w-full mx-auto px-6 pt-10 transition-opacity duration-300 ${isEmpty ? "opacity-0 pointer-events-none" : "opacity-100"
+            }`}
         >
           <div className="space-y-6">
             {messages.map((msg, i) => {
@@ -497,38 +496,38 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
                         )}
                       </div>
                     ) : (
-                    <div
-                      className="relative text-[15px] text-gray-800"
-                    >
-                      {msg.content || msg.reasoning || msg.error ? (
-                        <div className="relative">
-                          {msg.reasoning && (
-                            <ReasoningBlock 
-                              content={msg.reasoning} 
-                              isStreaming={isStreamingThis && !msg.content}
-                            />
-                          )}
-                          {msg.content && <MarkdownRenderer content={msg.content} />}
-                          {msg.error && (
-                            <div className="mt-3 flex items-start gap-2.5 text-red-700 bg-red-50/50 border border-red-100 rounded-xl p-3.5 text-[13px] leading-relaxed select-none">
-                              <AlertTriangle size={15} className="mt-0.5 flex-shrink-0 text-red-500" />
-                              <div className="flex-1">
-                                <span className="font-semibold block mb-0.5 text-red-800">Generation Interrupted</span>
-                                <span className="text-red-750/90">{msg.error}</span>
+                      <div
+                        className="relative text-[15px] text-gray-800"
+                      >
+                        {msg.content || msg.reasoning || msg.error ? (
+                          <div className="relative">
+                            {msg.reasoning && (
+                              <ReasoningBlock
+                                content={msg.reasoning}
+                                isStreaming={isStreamingThis && !msg.content}
+                              />
+                            )}
+                            {msg.content && <MarkdownRenderer content={msg.content} />}
+                            {msg.error && (
+                              <div className="mt-3 flex items-start gap-2.5 text-red-700 bg-red-50/50 border border-red-100 rounded-xl p-3.5 text-[13px] leading-relaxed select-none">
+                                <AlertTriangle size={15} className="mt-0.5 flex-shrink-0 text-red-500" />
+                                <div className="flex-1">
+                                  <span className="font-semibold block mb-0.5 text-red-800">Generation Interrupted</span>
+                                  <span className="text-red-750/90">{msg.error}</span>
+                                </div>
                               </div>
-                            </div>
-                          )}
-                          {/* Streaming blur edge effect */}
-                          {isStreamingThis && (
-                            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none" />
-                          )}
-                        </div>
-                      ) : (
-                        <span className="inline-flex items-center py-1">
-                          <Aperture size={16} className="spin-spring text-gray-400" />
-                        </span>
-                      )}
-                    </div>
+                            )}
+                            {/* Streaming blur edge effect */}
+                            {isStreamingThis && (
+                              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none" />
+                            )}
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center py-1">
+                            <Aperture size={16} className="spin-spring text-gray-400" />
+                          </span>
+                        )}
+                      </div>
                     )}
 
                     {/* Action buttons & Metrics — assistant only */}
@@ -643,7 +642,7 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
               pointerEvents: isEmpty ? "auto" : "none",
             }}
           >
-            Explore Sarvam models
+            Explore Sarvam Playground
           </h1>
 
           {/* Prompt Bar */}

@@ -291,7 +291,7 @@ chatCompletionsStream();`;
                       handleFetchOllamaModels();
                     }}
                     disabled={isFetchingModels}
-                    className="flex-shrink-0 px-3 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 whitespace-nowrap"
+                    className="flex-shrink-0 w-[96px] flex items-center justify-center px-3 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 whitespace-nowrap"
                   >
                     {isFetchingModels ? "Fetching..." : "Refresh"}
                   </button>
