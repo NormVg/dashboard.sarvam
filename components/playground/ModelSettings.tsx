@@ -87,7 +87,7 @@ async function chatOllamaStream() {
         for (const line of lines) {
             const trimmed = line.trim();
             if (!trimmed) continue;
-            
+
             const chunk = JSON.parse(trimmed);
             if (chunk.message?.content) {
                 process.stdout.write(chunk.message.content);
@@ -169,19 +169,17 @@ chatCompletionsStream();`;
   };
   return (
     <div
-      className={`bg-[#FAFAFA] flex flex-col h-full overflow-hidden shrink-0 transition-[width,border-width] duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${
-        isOpen ? "w-[340px] border-l border-gray-200" : "w-0 border-l-0"
-      }`}
-    >
-      <div 
-        className={`w-[340px] flex-1 flex flex-col h-full overflow-y-auto transition-opacity duration-300 delay-100 ${
-          isOpen ? "opacity-100" : "opacity-0"
+      className={`bg-[#FAFAFA] flex flex-col h-full overflow-hidden shrink-0 transition-[width,border-width] duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${isOpen ? "w-[340px] border-l border-gray-200" : "w-0 border-l-0"
         }`}
+    >
+      <div
+        className={`w-[340px] flex-1 flex flex-col h-full overflow-y-auto transition-opacity duration-300 delay-100 ${isOpen ? "opacity-100" : "opacity-0"
+          }`}
       >
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
           <h3 className="text-[13px] font-medium text-gray-500 uppercase tracking-wider">settings</h3>
           <div className="flex items-center gap-1 text-gray-400">
-            <button 
+            <button
               onClick={() => {
                 playUISound("pop", "aero");
                 setShowCode(true);
@@ -227,11 +225,10 @@ chatCompletionsStream();`;
                   playUISound("pop", "aero");
                   onChange({ ...config, provider: "sarvam", model: "sarvam-105b" });
                 }}
-                className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-all ${
-                  config.provider === "sarvam" 
-                    ? "bg-white text-gray-900 shadow-sm" 
+                className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-all ${config.provider === "sarvam"
+                    ? "bg-white text-gray-900 shadow-sm"
                     : "text-gray-500 hover:text-gray-700"
-                }`}
+                  }`}
               >
                 Sarvam AI
               </button>
@@ -240,11 +237,10 @@ chatCompletionsStream();`;
                   playUISound("pop", "aero");
                   onChange({ ...config, provider: "ollama", model: ollamaModels[0] || "" });
                 }}
-                className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-all ${
-                  config.provider === "ollama" 
-                    ? "bg-white text-gray-900 shadow-sm" 
+                className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-all ${config.provider === "ollama"
+                    ? "bg-white text-gray-900 shadow-sm"
                     : "text-gray-500 hover:text-gray-700"
-                }`}
+                  }`}
               >
                 Local Ollama
               </button>
@@ -266,7 +262,7 @@ chatCompletionsStream();`;
                     aria-label="Copy Ollama command"
                   >
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                     </svg>
                   </button>
                 </div>
@@ -450,14 +446,14 @@ chatCompletionsStream();`;
             <>
               <div>
                 <label className="text-[14px] font-medium text-gray-700 block mb-1.5">Model capabilities</label>
-                <p className="text-xs text-gray-400 mb-3">Auto-detected features for {config.model}.</p>
+                <p className="text-xs text-gray-400 mb-3">Features for {config.model}.</p>
 
                 {/* Thinking toggle */}
                 {ollamaCaps.thinking && (
                   <div className="flex items-center justify-between py-2.5 px-3 bg-white border border-gray-200 rounded-xl mb-2">
                     <div className="flex flex-col gap-0.5">
                       <span className="text-sm font-medium text-gray-800">Thinking</span>
-                      <span className="text-[11px] text-gray-400">DeepSeek R1 / QwQ architecture detected.</span>
+                      <span className="text-[11px] text-gray-400">Enable model-specific internal reasoning blocks.</span>
                     </div>
                     <button
                       role="switch"
@@ -466,9 +462,8 @@ chatCompletionsStream();`;
                         playUISound("pop", "aero");
                         onChange({ ...config, ollamaThinking: !(config.ollamaThinking ?? false) });
                       }}
-                      className={`relative w-10 h-5.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 flex-shrink-0 ${
-                        (config.ollamaThinking ?? false) ? "bg-gray-900" : "bg-gray-200"
-                      }`}
+                      className={`relative w-10 h-5.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 flex-shrink-0 ${(config.ollamaThinking ?? false) ? "bg-gray-900" : "bg-gray-200"
+                        }`}
                       style={{ height: "22px", width: "40px" }}
                     >
                       <span
@@ -486,7 +481,6 @@ chatCompletionsStream();`;
                       <span className="text-sm font-medium text-gray-800">Vision</span>
                       <span className="text-[11px] text-gray-400">Multimodal architecture detected.</span>
                     </div>
-                    <span className="text-[11px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Use 📎 in chat</span>
                   </div>
                 )}
               </div>
@@ -523,17 +517,15 @@ chatCompletionsStream();`;
       </div>
 
       {/* Code Snippet Modal Overlay */}
-      <div 
-        className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${
-          showCode 
-            ? "opacity-100 pointer-events-auto bg-black/40 backdrop-blur-[2px]" 
+      <div
+        className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${showCode
+            ? "opacity-100 pointer-events-auto bg-black/40 backdrop-blur-[2px]"
             : "opacity-0 pointer-events-none bg-black/0 backdrop-blur-none"
-        }`}
-      >
-        <div 
-          className={`bg-white rounded-2xl shadow-xl w-full max-w-3xl flex flex-col overflow-hidden max-h-[85vh] transition-all duration-300 transform ${
-            showCode ? "scale-100 translate-y-0 opacity-100" : "scale-95 translate-y-4 opacity-0"
           }`}
+      >
+        <div
+          className={`bg-white rounded-2xl shadow-xl w-full max-w-3xl flex flex-col overflow-hidden max-h-[85vh] transition-all duration-300 transform ${showCode ? "scale-100 translate-y-0 opacity-100" : "scale-95 translate-y-4 opacity-0"
+            }`}
         >
           <div className="flex items-center justify-between p-4 border-b border-gray-100">
             <h2 className="text-sm font-semibold text-gray-900">Integration Code</h2>
@@ -546,7 +538,7 @@ chatCompletionsStream();`;
               >
                 {copied ? <Check size={14} /> : <Copy size={14} />}
               </button>
-              <button 
+              <button
                 onClick={() => {
                   playUISound("drop", "aero");
                   setShowCode(false);
