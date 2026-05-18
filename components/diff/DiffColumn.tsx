@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback, useMemo } from "react";
-import { Copy, Check, Zap, Settings2 } from "lucide-react";
+import { useRef, useEffect, useState, useCallback } from "react";
+import { Copy, Check, Zap, Settings2, Loader2 } from "lucide-react";
 import { MarkdownRenderer } from "@/components/playground/MarkdownRenderer";
 import { ReasoningBlock } from "@/components/playground/ReasoningBlock";
 import { ModelSettings } from "@/components/playground/ModelSettings";
@@ -47,13 +47,36 @@ export function DiffColumn({ label, side, config, onConfigChange, turns, diffMod
     prevTurnCount.current = turns.length;
   }, [turns.length]);
 
-  // Compute diffs memoized
-  const turnDiffs = useMemo(() => {
-    if (!diffMode || diffMode === "none") return turns.map(() => null);
-    return turns.map(t => {
-      if (t.isStreamingA || t.isStreamingB) return null; // Avoid flicker
-      return computeDiff(diffMode, t.contentA, t.contentB);
-    });
+  // Compute diffs asynchronously to avoid blocking the main thread
+  const [turnDiffs, setTurnDiffs] = useState<(ReturnType<typeof computeDiff> | null)[]>([]);
+  const [isComputing, setIsComputing] = useState(false);
+
+  useEffect(() => {
+    if (!diffMode || diffMode === "none") {
+      setTurnDiffs(turns.map(() => null));
+      setIsComputing(false);
+      return;
+    }
+
+    setIsComputing(true);
+    let active = true;
+
+    // Yield to let React show the loader
+    const timer = setTimeout(() => {
+      const results = turns.map(t => {
+        if (t.isStreamingA || t.isStreamingB) return null; // Avoid flicker
+        return computeDiff(diffMode, t.contentA, t.contentB);
+      });
+      if (active) {
+        setTurnDiffs(results);
+        setIsComputing(false);
+      }
+    }, 10);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [turns, diffMode]);
 
   const getContent   = (t: DiffTurn) => side === "A" ? t.contentA   : t.contentB;
@@ -191,7 +214,12 @@ export function DiffColumn({ label, side, config, onConfigChange, turns, diffMod
                               {reasoning && <ReasoningBlock content={reasoning} isStreaming={streaming && !content} />}
                               
                               {/* Render diff ops if available, otherwise markdown */}
-                              {turnDiffs[i] && diffMode !== "none" ? (
+                              {isComputing ? (
+                                <div className="flex flex-col items-center justify-center py-6 text-gray-400 gap-2 bg-gray-50/50 rounded-xl border border-gray-100">
+                                  <Loader2 size={18} className="animate-spin text-gray-400" />
+                                  <span className="text-[11px] font-medium tracking-wide">Computing diff...</span>
+                                </div>
+                              ) : turnDiffs[i] && diffMode !== "none" ? (
                                 <DiffRenderer ops={side === "A" ? turnDiffs[i]!.diffA : turnDiffs[i]!.diffB} side={side} />
                               ) : content ? (
                                 <MarkdownRenderer content={content} />
