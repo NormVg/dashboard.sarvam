@@ -51,22 +51,22 @@ export function DiffColumn({ label, side, config, onConfigChange, turns, diffMod
   const [turnDiffs, setTurnDiffs] = useState<(ReturnType<typeof computeDiff> | null)[]>([]);
   const [isComputing, setIsComputing] = useState(false);
 
+  // Track whether any turn is actively streaming
+  const isAnyStreaming = turns.some(t => t.isStreamingA || t.isStreamingB);
+
   useEffect(() => {
-    if (!diffMode || diffMode === "none") {
-      setTurnDiffs(turns.map(() => null));
-      setIsComputing(false);
-      return;
-    }
+    // When diffMode is none, don't touch state at all — just bail out
+    if (!diffMode || diffMode === "none") return;
+
+    // While streaming, don't compute diffs (avoid cascading state updates)
+    if (isAnyStreaming) return;
 
     setIsComputing(true);
     let active = true;
 
     // Yield to let React show the loader
     const timer = setTimeout(() => {
-      const results = turns.map(t => {
-        if (t.isStreamingA || t.isStreamingB) return null; // Avoid flicker
-        return computeDiff(diffMode, t.contentA, t.contentB);
-      });
+      const results = turns.map(t => computeDiff(diffMode, t.contentA, t.contentB));
       if (active) {
         setTurnDiffs(results);
         setIsComputing(false);
@@ -77,7 +77,7 @@ export function DiffColumn({ label, side, config, onConfigChange, turns, diffMod
       active = false;
       clearTimeout(timer);
     };
-  }, [turns, diffMode]);
+  }, [isAnyStreaming, diffMode]);
 
   const getContent   = (t: DiffTurn) => side === "A" ? t.contentA   : t.contentB;
   const getReasoning = (t: DiffTurn) => side === "A" ? t.reasoningA : t.reasoningB;
