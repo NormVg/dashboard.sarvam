@@ -51,28 +51,12 @@ export default function DiffViewPage() {
             None
           </button>
           <button
-            onClick={() => setDiffMode("lcs")}
+            onClick={() => setDiffMode("diff")}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              diffMode === "lcs" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+              diffMode === "diff" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
             }`}
           >
-            LCS
-          </button>
-          <button
-            onClick={() => setDiffMode("myers")}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              diffMode === "myers" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Myers
-          </button>
-          <button
-            onClick={() => setDiffMode("custom")}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              diffMode === "custom" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Custom
+            Diff
           </button>
         </div>
       </div>
