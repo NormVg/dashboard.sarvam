@@ -35,16 +35,20 @@ function newTurn(prompt: string): DiffTurn {
   };
 }
 
+import { DiffAlgorithm } from "@/lib/diff-utils";
+
 interface DiffMainProps {
   initialConfigA?: PlaygroundConfig;
   initialConfigB?: PlaygroundConfig;
   apiKey?: string;
+  diffMode?: DiffAlgorithm;
 }
 
 export function DiffMain({
   initialConfigA,
   initialConfigB,
   apiKey = "",
+  diffMode = "none",
 }: DiffMainProps) {
   const [configA, setConfigA] = useState<PlaygroundConfig>(
     initialConfigA ?? { ...DEFAULT_PLAYGROUND_CONFIG, model: "sarvam-105b", provider: "sarvam" }
@@ -277,6 +281,7 @@ export function DiffMain({
           config={configA}
           onConfigChange={setConfigA}
           turns={turns}
+          diffMode={diffMode}
         />
         <DiffColumn
           label="Model B"
@@ -284,6 +289,7 @@ export function DiffMain({
           config={configB}
           onConfigChange={setConfigB}
           turns={turns}
+          diffMode={diffMode}
         />
       </div>
 

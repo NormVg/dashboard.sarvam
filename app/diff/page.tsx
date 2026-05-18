@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { DiffMain } from "@/components/diff/DiffMain";
-import { GitCompare } from "lucide-react";
+import { GitCompare, Wand2 } from "lucide-react";
 import styles from "../dashboard.module.css";
 import { DEFAULT_PLAYGROUND_CONFIG } from "@/types/playground";
+import { DiffAlgorithm } from "@/lib/diff-utils";
 
 export default function DiffViewPage() {
   const [apiKey, setApiKey] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
+  const [diffMode, setDiffMode] = useState<DiffAlgorithm>("none");
 
   useEffect(() => {
     // Re-use the API key from the playground config if available
@@ -37,12 +39,49 @@ export default function DiffViewPage() {
             <p className="text-xs text-gray-500">Compare outputs from two model configurations on the same prompt</p>
           </div>
         </div>
+        
+        {/* Diff Mode Toggle */}
+        <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg">
+          <button
+            onClick={() => setDiffMode("none")}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              diffMode === "none" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            None
+          </button>
+          <button
+            onClick={() => setDiffMode("lcs")}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              diffMode === "lcs" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            LCS
+          </button>
+          <button
+            onClick={() => setDiffMode("myers")}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              diffMode === "myers" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            Myers
+          </button>
+          <button
+            onClick={() => setDiffMode("custom")}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              diffMode === "custom" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            Custom
+          </button>
+        </div>
       </div>
 
       {/* ——— Diff Interface ——— */}
       <div className="flex-1 flex flex-col overflow-hidden bg-white">
         <DiffMain
           apiKey={apiKey}
+          diffMode={diffMode}
           initialConfigA={{ ...DEFAULT_PLAYGROUND_CONFIG, model: "sarvam-105b", provider: "sarvam" }}
           initialConfigB={{ ...DEFAULT_PLAYGROUND_CONFIG, model: "sarvam-30b", provider: "sarvam" }}
         />

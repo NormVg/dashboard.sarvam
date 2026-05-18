@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { Copy, Check, Zap, Settings2 } from "lucide-react";
 import { MarkdownRenderer } from "@/components/playground/MarkdownRenderer";
 import { ReasoningBlock } from "@/components/playground/ReasoningBlock";
@@ -8,6 +8,7 @@ import { ModelSettings } from "@/components/playground/ModelSettings";
 import { DiffTurn } from "@/types/diff";
 import { PlaygroundConfig, StreamMetrics } from "@/types/playground";
 import { fetchOllamaModelCapabilities, OllamaCapabilities } from "@/lib/ollama-api";
+import { DiffAlgorithm, DiffOp, computeDiff } from "@/lib/diff-utils";
 import { playUISound } from "@thenormvg/web-have-sounds";
 
 interface DiffColumnProps {
@@ -16,9 +17,10 @@ interface DiffColumnProps {
   config: PlaygroundConfig;
   onConfigChange: (c: PlaygroundConfig) => void;
   turns: DiffTurn[];
+  diffMode?: DiffAlgorithm;
 }
 
-export function DiffColumn({ label, side, config, onConfigChange, turns }: DiffColumnProps) {
+export function DiffColumn({ label, side, config, onConfigChange, turns, diffMode = "none" }: DiffColumnProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isUserScrolledUpRef = useRef(false);
@@ -44,6 +46,15 @@ export function DiffColumn({ label, side, config, onConfigChange, turns }: DiffC
     }
     prevTurnCount.current = turns.length;
   }, [turns.length]);
+
+  // Compute diffs memoized
+  const turnDiffs = useMemo(() => {
+    if (!diffMode || diffMode === "none") return turns.map(() => null);
+    return turns.map(t => {
+      if (t.isStreamingA || t.isStreamingB) return null; // Avoid flicker
+      return computeDiff(diffMode, t.contentA, t.contentB);
+    });
+  }, [turns, diffMode]);
 
   const getContent   = (t: DiffTurn) => side === "A" ? t.contentA   : t.contentB;
   const getReasoning = (t: DiffTurn) => side === "A" ? t.reasoningA : t.reasoningB;
@@ -178,7 +189,14 @@ export function DiffColumn({ label, side, config, onConfigChange, turns }: DiffC
                           {content || reasoning || error ? (
                             <div className="relative">
                               {reasoning && <ReasoningBlock content={reasoning} isStreaming={streaming && !content} />}
-                              {content && <MarkdownRenderer content={content} />}
+                              
+                              {/* Render diff ops if available, otherwise markdown */}
+                              {turnDiffs[i] && diffMode !== "none" ? (
+                                <DiffRenderer ops={side === "A" ? turnDiffs[i]!.diffA : turnDiffs[i]!.diffB} side={side} />
+                              ) : content ? (
+                                <MarkdownRenderer content={content} />
+                              ) : null}
+
                               {error && (
                                 <div className="mt-2 text-xs text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
                                   {error}
@@ -257,6 +275,26 @@ export function DiffColumn({ label, side, config, onConfigChange, turns }: DiffC
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+// Local helper to render diff
+function DiffRenderer({ ops, side }: { ops: DiffOp[], side: "A" | "B" }) {
+  return (
+    <div className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed break-words bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+      {ops.map((op, i) => {
+        if (op.type === "equal") {
+          return <span key={i} className="text-gray-700">{op.text}</span>;
+        }
+        if (side === "A" && op.type === "delete") {
+          return <span key={i} className="bg-red-100 text-red-800 line-through decoration-red-400 opacity-80">{op.text}</span>;
+        }
+        if (side === "B" && op.type === "insert") {
+          return <span key={i} className="bg-emerald-100 text-emerald-800 font-medium">{op.text}</span>;
+        }
+        return null;
+      })}
     </div>
   );
 }
