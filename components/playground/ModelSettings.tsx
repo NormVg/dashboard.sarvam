@@ -43,10 +43,12 @@ export function ModelSettings({ isOpen, onClose, config, onChange, ollamaCaps, f
     }
   };
 
-  // Auto-fetch Ollama models on mount
+  // Auto-fetch Ollama models only when provider is ollama
   useEffect(() => {
-    handleFetchOllamaModels();
-  }, []);
+    if (config.provider === "ollama") {
+      handleFetchOllamaModels();
+    }
+  }, [config.provider]);
 
   const getCodeSnippet = () => {
     if (config.provider === "ollama") {
