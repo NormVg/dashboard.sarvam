@@ -26,7 +26,7 @@ export function DiffColumn({ label, side, config, onConfigChange, turns }: DiffC
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [ollamaCaps, setOllamaCaps] = useState<OllamaCapabilities>({ vision: false, thinking: false });
 
-  // Refresh Ollama capabilities whenever model changes
+  // Update Ollama capabilities whenever model changes
   useEffect(() => {
     if (config.provider === "ollama" && config.model) {
       fetchOllamaModelCapabilities(config.ollamaUrl ?? "http://localhost:11434", config.model)
@@ -35,6 +35,15 @@ export function DiffColumn({ label, side, config, onConfigChange, turns }: DiffC
       setOllamaCaps({ vision: false, thinking: false });
     }
   }, [config.provider, config.model, config.ollamaUrl]);
+
+  // Auto-close settings when a new turn arrives (user sent a message)
+  const prevTurnCount = useRef(turns.length);
+  useEffect(() => {
+    if (turns.length > prevTurnCount.current) {
+      setIsSettingsOpen(false);
+    }
+    prevTurnCount.current = turns.length;
+  }, [turns.length]);
 
   const getContent   = (t: DiffTurn) => side === "A" ? t.contentA   : t.contentB;
   const getReasoning = (t: DiffTurn) => side === "A" ? t.reasoningA : t.reasoningB;
@@ -63,167 +72,191 @@ export function DiffColumn({ label, side, config, onConfigChange, turns }: DiffC
     setTimeout(() => setCopiedIdx(null), 2000);
   }, []);
 
-  // Derive a short readable model name for the header badge
   const modelLabel = config.provider === "sarvam"
     ? (config.model === "sarvam-105b" ? "Sarvam 105B" : "Sarvam 30B")
     : config.model || "No model";
 
+  const openSettings = () => {
+    playUISound("pop", "aero");
+    setIsSettingsOpen(true);
+  };
+
+  const closeSettings = () => {
+    setIsSettingsOpen(false);
+  };
+
   return (
-    <div className="flex-1 flex flex-row h-full min-w-0 border-r border-gray-200 last:border-r-0 relative">
+    <div className="flex-1 flex flex-col h-full min-w-0 border-r border-gray-200 last:border-r-0">
 
-      {/* ——— Main column content ——— */}
-      <div className="flex-1 flex flex-col h-full min-w-0">
-
-        {/* Header */}
-        <div className="flex-shrink-0 px-4 py-3 border-b border-gray-100 bg-white flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className={`w-5 h-5 rounded-full text-[11px] font-bold text-white flex items-center justify-center flex-shrink-0 ${
-              side === "A" ? "bg-indigo-500" : "bg-emerald-500"
-            }`}>
-              {side}
-            </span>
-            <span className="text-[13px] font-semibold text-gray-700 truncate">{label}</span>
-            {/* Current model badge */}
-            <span className="hidden sm:inline text-[11px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full truncate max-w-[160px]">
-              {modelLabel}
-            </span>
-          </div>
-
-          {/* Settings button */}
-          <button
-            onClick={() => {
-              playUISound("pop", "aero");
-              setIsSettingsOpen((v) => !v);
-            }}
-            aria-label={`Open settings for model ${side}`}
-            aria-pressed={isSettingsOpen}
-            className={`flex-shrink-0 p-1.5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300 ${
-              isSettingsOpen
-                ? "bg-gray-900 text-white"
-                : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-            }`}
-          >
-            <Settings2 size={15} />
-          </button>
+      {/* ——— Header (always visible) ——— */}
+      <div className="flex-shrink-0 px-4 py-3 border-b border-gray-100 bg-white flex items-center justify-between gap-3 z-10">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`w-5 h-5 rounded-full text-[11px] font-bold text-white flex items-center justify-center flex-shrink-0 ${
+            side === "A" ? "bg-indigo-500" : "bg-emerald-500"
+          }`}>
+            {side}
+          </span>
+          <span className="text-[13px] font-semibold text-gray-700 truncate">{label}</span>
+          <span className="hidden sm:inline text-[11px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full truncate max-w-[160px]">
+            {modelLabel}
+          </span>
         </div>
 
-        {/* ——— Scroll area ——— */}
-        <div
-          ref={scrollContainerRef}
-          onScroll={handleScroll}
-          className="flex-1 overflow-y-auto"
-          style={{ scrollbarWidth: "thin", scrollbarColor: "#e5e7eb transparent" }}
+        <button
+          onClick={isSettingsOpen ? closeSettings : openSettings}
+          aria-label={isSettingsOpen ? "Close settings" : "Open settings"}
+          aria-pressed={isSettingsOpen}
+          className={`flex-shrink-0 p-1.5 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300 ${
+            isSettingsOpen
+              ? "bg-gray-900 text-white shadow-sm"
+              : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+          }`}
         >
-          {isEmpty ? (
-            <div className="h-full flex flex-col items-center justify-center p-8 text-center">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${
-                side === "A" ? "bg-indigo-50" : "bg-emerald-50"
-              }`}>
-                <span className={`text-xl font-bold ${side === "A" ? "text-indigo-400" : "text-emerald-400"}`}>{side}</span>
-              </div>
-              <p className="text-sm text-gray-500 font-medium">{modelLabel}</p>
-              <p className="text-xs text-gray-400 mt-1">Output will appear here</p>
-              <button
-                onClick={() => { playUISound("pop", "aero"); setIsSettingsOpen(true); }}
-                className="mt-4 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                <Settings2 size={12} />
-                Configure model
-              </button>
-            </div>
-          ) : (
-            <div className="p-4 space-y-6">
-              {turns.map((turn, i) => {
-                const content   = getContent(turn);
-                const reasoning = getReasoning(turn);
-                const error     = getError(turn);
-                const metrics   = getMetrics(turn);
-                const streaming = isStreaming(turn);
-                const isLast    = i === turns.length - 1;
-
-                return (
-                  <div key={turn.id} className="space-y-3">
-                    {/* User prompt bubble */}
-                    <div className="flex justify-end">
-                      <div className="max-w-[80%] bg-gray-100 text-gray-800 rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm leading-relaxed">
-                        {turn.prompt}
-                      </div>
-                    </div>
-
-                    {/* Assistant response */}
-                    <div className="space-y-1">
-                      <div className="text-[13px] text-gray-800 leading-relaxed">
-                        {content || reasoning || error ? (
-                          <div className="relative">
-                            {reasoning && <ReasoningBlock content={reasoning} isStreaming={streaming && !content} />}
-                            {content && <MarkdownRenderer content={content} />}
-                            {error && (
-                              <div className="mt-2 text-xs text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
-                                {error}
-                              </div>
-                            )}
-                            {streaming && (
-                              <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-white via-white/70 to-transparent pointer-events-none" />
-                            )}
-                          </div>
-                        ) : (
-                          <span className="inline-block w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
-                        )}
-                      </div>
-
-                      {/* Copy + metrics row */}
-                      {content && !streaming && (
-                        <div className="flex items-center gap-3 mt-1.5">
-                          <button
-                            onClick={() => handleCopy(content, i)}
-                            className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                            aria-label="Copy response"
-                          >
-                            {copiedIdx === i ? <Check size={12} /> : <Copy size={12} />}
-                            <span>{copiedIdx === i ? "Copied" : "Copy"}</span>
-                          </button>
-                          {isLast && metrics.tokenCount > 0 && (
-                            <div className="flex items-center gap-2 text-[11px] text-gray-500 select-none">
-                              <Zap size={11} className="text-amber-400" />
-                              <span className="tabular-nums font-mono font-semibold">{metrics.tokenCount}</span>
-                              <span>tokens</span>
-                              <span className="w-px h-2 bg-gray-200" />
-                              <span className="tabular-nums font-mono font-semibold">{metrics.avgTps}</span>
-                              <span>tok/s avg</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Live streaming metrics */}
-                      {streaming && metrics.tokenCount > 0 && (
-                        <div className="flex items-center gap-2 text-[11px] text-gray-500 select-none mt-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          <span className="tabular-nums font-mono font-semibold">{metrics.tokenCount}</span>
-                          <span>tokens</span>
-                          <span className="w-px h-2 bg-gray-200" />
-                          <span className="tabular-nums font-mono font-semibold">{metrics.tokensPerSecond}</span>
-                          <span>tok/s</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
+          <Settings2 size={15} />
+        </button>
       </div>
 
-      {/* ——— Full ModelSettings drawer ——— */}
-      <ModelSettings
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        config={config}
-        onChange={onConfigChange}
-        ollamaCaps={ollamaCaps}
-      />
+      {/* ——— Animated content area ——— */}
+      <div className="flex-1 relative overflow-hidden">
+
+        {/* ——— Chat layer — slides left when settings opens ——— */}
+        <div
+          className="absolute inset-0 flex flex-col transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+          style={{
+            transform: isSettingsOpen ? "translateX(-24px)" : "translateX(0)",
+            opacity: isSettingsOpen ? 0 : 1,
+            pointerEvents: isSettingsOpen ? "none" : "auto",
+          }}
+        >
+          <div
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className="flex-1 overflow-y-auto"
+            style={{ scrollbarWidth: "thin", scrollbarColor: "#e5e7eb transparent" }}
+          >
+            {isEmpty ? (
+              <div className="h-full flex flex-col items-center justify-center p-8 text-center">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${
+                  side === "A" ? "bg-indigo-50" : "bg-emerald-50"
+                }`}>
+                  <span className={`text-xl font-bold ${side === "A" ? "text-indigo-400" : "text-emerald-400"}`}>
+                    {side}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-500 font-medium">{modelLabel}</p>
+                <p className="text-xs text-gray-400 mt-1">Output will appear here</p>
+                <button
+                  onClick={openSettings}
+                  className="mt-4 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  <Settings2 size={12} />
+                  Configure model
+                </button>
+              </div>
+            ) : (
+              <div className="p-4 space-y-6">
+                {turns.map((turn, i) => {
+                  const content   = getContent(turn);
+                  const reasoning = getReasoning(turn);
+                  const error     = getError(turn);
+                  const metrics   = getMetrics(turn);
+                  const streaming = isStreaming(turn);
+                  const isLast    = i === turns.length - 1;
+
+                  return (
+                    <div key={turn.id} className="space-y-3">
+                      {/* User prompt bubble */}
+                      <div className="flex justify-end">
+                        <div className="max-w-[80%] bg-gray-100 text-gray-800 rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm leading-relaxed">
+                          {turn.prompt}
+                        </div>
+                      </div>
+
+                      {/* Assistant response */}
+                      <div className="space-y-1">
+                        <div className="text-[13px] text-gray-800 leading-relaxed">
+                          {content || reasoning || error ? (
+                            <div className="relative">
+                              {reasoning && <ReasoningBlock content={reasoning} isStreaming={streaming && !content} />}
+                              {content && <MarkdownRenderer content={content} />}
+                              {error && (
+                                <div className="mt-2 text-xs text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+                                  {error}
+                                </div>
+                              )}
+                              {streaming && (
+                                <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-white via-white/70 to-transparent pointer-events-none" />
+                              )}
+                            </div>
+                          ) : (
+                            <span className="inline-block w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                          )}
+                        </div>
+
+                        {/* Copy + metrics */}
+                        {content && !streaming && (
+                          <div className="flex items-center gap-3 mt-1.5">
+                            <button
+                              onClick={() => handleCopy(content, i)}
+                              className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                              aria-label="Copy response"
+                            >
+                              {copiedIdx === i ? <Check size={12} /> : <Copy size={12} />}
+                              <span>{copiedIdx === i ? "Copied" : "Copy"}</span>
+                            </button>
+                            {isLast && metrics.tokenCount > 0 && (
+                              <div className="flex items-center gap-2 text-[11px] text-gray-500 select-none">
+                                <Zap size={11} className="text-amber-400" />
+                                <span className="tabular-nums font-mono font-semibold">{metrics.tokenCount}</span>
+                                <span>tokens</span>
+                                <span className="w-px h-2 bg-gray-200" />
+                                <span className="tabular-nums font-mono font-semibold">{metrics.avgTps}</span>
+                                <span>tok/s avg</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Live streaming metrics */}
+                        {streaming && metrics.tokenCount > 0 && (
+                          <div className="flex items-center gap-2 text-[11px] text-gray-500 select-none mt-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="tabular-nums font-mono font-semibold">{metrics.tokenCount}</span>
+                            <span>tokens</span>
+                            <span className="w-px h-2 bg-gray-200" />
+                            <span className="tabular-nums font-mono font-semibold">{metrics.tokensPerSecond}</span>
+                            <span>tok/s</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ——— Settings layer — slides in from right ——— */}
+        <div
+          className="absolute inset-0 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+          style={{
+            transform: isSettingsOpen ? "translateX(0)" : "translateX(100%)",
+            opacity: isSettingsOpen ? 1 : 0,
+            pointerEvents: isSettingsOpen ? "auto" : "none",
+          }}
+        >
+          <ModelSettings
+            isOpen={true}
+            fullWidth
+            onClose={closeSettings}
+            config={config}
+            onChange={onConfigChange}
+            ollamaCaps={ollamaCaps}
+          />
+        </div>
+      </div>
     </div>
   );
 }

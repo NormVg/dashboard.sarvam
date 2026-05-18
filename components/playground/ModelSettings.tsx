@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Info, ChevronDown, Code2, RotateCcw, X, Copy, Check } from "lucide-react";
 import { PlaygroundConfig, DEFAULT_PLAYGROUND_CONFIG } from "@/types/playground";
 import { playUISound } from "@thenormvg/web-have-sounds";
@@ -10,14 +11,21 @@ interface ModelSettingsProps {
   config: PlaygroundConfig;
   onChange: (config: PlaygroundConfig) => void;
   ollamaCaps?: OllamaCapabilities;
+  /** When true the panel fills 100% of the parent container (no fixed 340px width / slide animation) */
+  fullWidth?: boolean;
 }
 
-export function ModelSettings({ isOpen, onClose, config, onChange, ollamaCaps }: ModelSettingsProps) {
+export function ModelSettings({ isOpen, onClose, config, onChange, ollamaCaps, fullWidth = false }: ModelSettingsProps) {
   const [showCode, setShowCode] = useState(false);
   const [copied, setCopied] = useState(false);
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
   const [isFetchingModels, setIsFetchingModels] = useState(false);
   const [modelError, setModelError] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleFetchOllamaModels = async () => {
     setIsFetchingModels(true);
@@ -169,12 +177,16 @@ chatCompletionsStream();`;
   };
   return (
     <div
-      className={`bg-[#FAFAFA] flex flex-col h-full overflow-hidden shrink-0 transition-[width,border-width] duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${isOpen ? "w-[340px] border-l border-gray-200" : "w-0 border-l-0"
-        }`}
+      className={fullWidth
+        ? "bg-[#FAFAFA] flex flex-col h-full overflow-hidden w-full"
+        : `bg-[#FAFAFA] flex flex-col h-full overflow-hidden shrink-0 transition-[width,border-width] duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${isOpen ? "w-[340px] border-l border-gray-200" : "w-0 border-l-0"}`
+      }
     >
       <div
-        className={`w-[340px] flex-1 flex flex-col h-full overflow-y-auto transition-opacity duration-300 delay-100 ${isOpen ? "opacity-100" : "opacity-0"
-          }`}
+        className={fullWidth
+          ? "flex-1 flex flex-col h-full overflow-y-auto"
+          : `w-[340px] flex-1 flex flex-col h-full overflow-y-auto transition-opacity duration-300 delay-100 ${isOpen ? "opacity-100" : "opacity-0"}`
+        }
       >
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
           <h3 className="text-[13px] font-medium text-gray-500 uppercase tracking-wider">settings</h3>
@@ -529,47 +541,50 @@ chatCompletionsStream();`;
         </div>
       </div>
 
-      {/* Code Snippet Modal Overlay */}
-      <div
-        className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${showCode
-            ? "opacity-100 pointer-events-auto bg-black/40 backdrop-blur-[2px]"
-            : "opacity-0 pointer-events-none bg-black/0 backdrop-blur-none"
-          }`}
-      >
+      {/* Code Snippet Modal — portalled to body to escape parent CSS transform stacking context */}
+      {isMounted && createPortal(
         <div
-          className={`bg-white rounded-2xl shadow-xl w-full max-w-3xl flex flex-col overflow-hidden max-h-[85vh] transition-all duration-300 transform ${showCode ? "scale-100 translate-y-0 opacity-100" : "scale-95 translate-y-4 opacity-0"
+          className={`fixed inset-0 z-[200] flex items-center justify-center p-4 transition-all duration-300 ${showCode
+              ? "opacity-100 pointer-events-auto bg-black/40 backdrop-blur-[2px]"
+              : "opacity-0 pointer-events-none bg-black/0 backdrop-blur-none"
             }`}
         >
-          <div className="flex items-center justify-between p-4 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-900">Integration Code</h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleCopyCode}
-                className="p-2 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400"
-                title="Copy code"
-                aria-label="Copy code"
-              >
-                {copied ? <Check size={14} /> : <Copy size={14} />}
-              </button>
-              <button
-                onClick={() => {
-                  playUISound("drop", "aero");
-                  setShowCode(false);
-                }}
-                className="p-1 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
-                aria-label="Close code snippet"
-              >
-                <X size={16} className="text-gray-500" />
-              </button>
+          <div
+            className={`bg-white rounded-2xl shadow-xl w-full max-w-3xl flex flex-col overflow-hidden max-h-[85vh] transition-all duration-300 transform ${showCode ? "scale-100 translate-y-0 opacity-100" : "scale-95 translate-y-4 opacity-0"
+              }`}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <h2 className="text-sm font-semibold text-gray-900">Integration Code</h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCopyCode}
+                  className="p-2 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400"
+                  title="Copy code"
+                  aria-label="Copy code"
+                >
+                  {copied ? <Check size={14} /> : <Copy size={14} />}
+                </button>
+                <button
+                  onClick={() => {
+                    playUISound("drop", "aero");
+                    setShowCode(false);
+                  }}
+                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                  aria-label="Close code snippet"
+                >
+                  <X size={16} className="text-gray-500" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6 overflow-y-auto bg-[#F6F8FA]">
+              <pre className="text-[13px] leading-[1.6] font-mono text-gray-800 whitespace-pre-wrap break-all">
+                {getCodeSnippet()}
+              </pre>
             </div>
           </div>
-          <div className="p-6 overflow-y-auto bg-[#F6F8FA]">
-            <pre className="text-[13px] leading-[1.6] font-mono text-gray-800 whitespace-pre-wrap break-all">
-              {getCodeSnippet()}
-            </pre>
-          </div>
-        </div>
-      </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
