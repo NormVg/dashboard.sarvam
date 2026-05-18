@@ -77,6 +77,9 @@ export async function streamSarvamChat({
       // Keep the last incomplete line in the buffer
       buffer = lines.pop() || "";
 
+      let contentBatch = "";
+      let reasoningBatch = "";
+
       for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed || !trimmed.startsWith("data:")) continue;
@@ -92,28 +95,33 @@ export async function streamSarvamChat({
             if (!isReasoning) {
               isReasoning = true;
               if (!onReasoningChunk) {
-                onChunk("> **Thinking Process**\n> \n> ");
+                contentBatch += "> **Thinking Process**\n> \n> ";
               }
             }
             if (onReasoningChunk) {
-              onReasoningChunk(delta.reasoning_content);
+              reasoningBatch += delta.reasoning_content;
             } else {
-              // Ensure any newlines in reasoning are prefixed to stay inside the blockquote
-              const formattedReasoning = delta.reasoning_content.replace(/\n/g, "\n> ");
-              onChunk(formattedReasoning);
+              contentBatch += delta.reasoning_content.replace(/\n/g, "\n> ");
             }
           } else if (delta?.content) {
             if (isReasoning) {
               isReasoning = false;
               if (!onReasoningChunk) {
-                onChunk("\n\n---\n\n");
+                contentBatch += "\n\n---\n\n";
               }
             }
-            onChunk(delta.content);
+            contentBatch += delta.content;
           }
         } catch (e) {
-          console.error("Error parsing chunk", e, "Data:", data);
+          console.error("Error parsing streaming chunk", e, "Data:", data);
         }
+      }
+
+      if (reasoningBatch && onReasoningChunk) {
+        onReasoningChunk(reasoningBatch);
+      }
+      if (contentBatch) {
+        onChunk(contentBatch);
       }
     }
 

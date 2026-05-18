@@ -58,8 +58,8 @@ export async function fetchOllamaModels({ url }: FetchOllamaModelsOptions): Prom
     const data = await response.json();
     return data.models.map((m: any) => m.name);
   } catch (error: any) {
-    if (error.name === "TypeError" && error.message.includes("fetch")) {
-      throw new Error("Ollama server unreachable. Make sure it is running and CORS is enabled.");
+    if (error.name === "TypeError" && (error.message.includes("fetch") || error.message.includes("NetworkError") || error.message.includes("Load failed"))) {
+      throw new Error("Ollama server unreachable or CORS is blocking the request. Ensure OLLAMA_ORIGINS is configured properly.");
     }
     console.error("Error fetching Ollama models:", error);
     throw error;
@@ -152,6 +152,9 @@ export async function streamOllamaChat({
       const lines = buffer.split("\n");
       buffer = lines.pop() || "";
 
+      let contentBatch = "";
+      let reasoningBatch = "";
+
       for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed) continue;
@@ -159,17 +162,24 @@ export async function streamOllamaChat({
         try {
           const chunk = JSON.parse(trimmed);
           // Thinking content (qwen3, deepseek-r1, etc.)
-          if (chunk.message?.thinking && onReasoningChunk) {
-            onReasoningChunk(chunk.message.thinking);
+          if (chunk.message?.thinking) {
+            reasoningBatch += chunk.message.thinking;
           }
           // Regular content
           if (chunk.message?.content) {
-            onChunk(chunk.message.content);
+            contentBatch += chunk.message.content;
           }
           if (chunk.done) break;
         } catch (e) {
           console.error("Error parsing Ollama chunk", e, "Data:", trimmed);
         }
+      }
+
+      if (reasoningBatch && onReasoningChunk) {
+        onReasoningChunk(reasoningBatch);
+      }
+      if (contentBatch) {
+        onChunk(contentBatch);
       }
     }
 
@@ -177,6 +187,8 @@ export async function streamOllamaChat({
   } catch (error: any) {
     if (error.name === "AbortError") {
       onFinish?.();
+    } else if (error.name === "TypeError" && (error.message.includes("fetch") || error.message.includes("NetworkError") || error.message.includes("Load failed"))) {
+      onError?.(new Error("Ollama server unreachable or CORS is blocking the request. Ensure OLLAMA_ORIGINS is configured properly."));
     } else {
       onError?.(error);
     }
