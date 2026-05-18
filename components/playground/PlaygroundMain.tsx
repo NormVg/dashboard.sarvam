@@ -50,6 +50,13 @@ export function PlaygroundMain({ isSettingsOpen, onOpenSettings, config, ollamaC
   const abortControllerRef = useRef<AbortController | null>(null);
   const isUserScrolledUpRef = useRef(false);
 
+  // Abort active stream on unmount (prevents page-switch hang)
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
   const isEmpty = messages.length === 0;
 
   // Track if user has scrolled up (away from bottom)

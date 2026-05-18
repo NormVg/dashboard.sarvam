@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { DiffColumn } from "./DiffColumn";
 import { PromptBar, AttachedFile } from "@/components/playground/PromptBar";
 import { DiffTurn } from "@/types/diff";
@@ -66,6 +66,14 @@ export function DiffMain({
   const tokenCountB = useRef(0);
   const startTimeA = useRef(0);
   const startTimeB = useRef(0);
+
+  // Abort active streams on unmount (prevents page-switch hang)
+  useEffect(() => {
+    return () => {
+      abortA.current?.abort();
+      abortB.current?.abort();
+    };
+  }, []);
 
   // ——————————————————————————————————————
   // Helpers to update a single turn by id
