@@ -57,7 +57,10 @@ export async function fetchOllamaModels({ url }: FetchOllamaModelsOptions): Prom
 
     const data = await response.json();
     return data.models.map((m: any) => m.name);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === "TypeError" && error.message.includes("fetch")) {
+      throw new Error("Ollama server unreachable. Make sure it is running and CORS is enabled.");
+    }
     console.error("Error fetching Ollama models:", error);
     throw error;
   }
