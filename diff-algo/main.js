@@ -363,5 +363,5 @@ const algoLCS = async (doc1, doc2) => {
 }
 
 
-// algoLCS(d1, d2);
+//algoLCS(d1, d2);
 algoLCS(A, B);

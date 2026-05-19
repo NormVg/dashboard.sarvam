@@ -143,6 +143,52 @@ export async function streamOllamaChat({
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    let inThink = false;
+    let tagBuffer = "";
+
+    function processContent(text: string): { content: string; reasoning: string } {
+      let content = "";
+      let reasoning = "";
+      
+      let i = 0;
+      while (i < text.length) {
+        const char = text[i];
+        
+        if (tagBuffer || char === "<") {
+          tagBuffer += char;
+          i++;
+          
+          const isPrefixOfOpen = "<think>".startsWith(tagBuffer);
+          const isPrefixOfClose = "</think>".startsWith(tagBuffer);
+          
+          if (isPrefixOfOpen || isPrefixOfClose) {
+            if (tagBuffer === "<think>") {
+              inThink = true;
+              tagBuffer = "";
+            } else if (tagBuffer === "</think>") {
+              inThink = false;
+              tagBuffer = "";
+            }
+          } else {
+            if (inThink) {
+              reasoning += tagBuffer;
+            } else {
+              content += tagBuffer;
+            }
+            tagBuffer = "";
+          }
+        } else {
+          if (inThink) {
+            reasoning += char;
+          } else {
+            content += char;
+          }
+          i++;
+        }
+      }
+      
+      return { content, reasoning };
+    }
 
     while (true) {
       const { done, value } = await reader.read();
@@ -163,11 +209,17 @@ export async function streamOllamaChat({
           const chunk = JSON.parse(trimmed);
           // Thinking content (qwen3, deepseek-r1, etc.)
           if (chunk.message?.thinking) {
-            reasoningBatch += chunk.message.thinking;
+            if (think) {
+              reasoningBatch += chunk.message.thinking;
+            }
           }
           // Regular content
           if (chunk.message?.content) {
-            contentBatch += chunk.message.content;
+            const parsed = processContent(chunk.message.content);
+            if (think) {
+              reasoningBatch += parsed.reasoning;
+            }
+            contentBatch += parsed.content;
           }
           if (chunk.done) break;
         } catch (e) {
@@ -175,11 +227,19 @@ export async function streamOllamaChat({
         }
       }
 
-      if (reasoningBatch && onReasoningChunk) {
+      if (reasoningBatch && onReasoningChunk && think) {
         onReasoningChunk(reasoningBatch);
       }
       if (contentBatch) {
         onChunk(contentBatch);
+      }
+    }
+
+    if (tagBuffer) {
+      if (inThink && think && onReasoningChunk) {
+        onReasoningChunk(tagBuffer);
+      } else if (!inThink) {
+        onChunk(tagBuffer);
       }
     }
 
