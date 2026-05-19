@@ -50,12 +50,34 @@ export function DiffMain({
   apiKey = "",
   diffMode = "none",
 }: DiffMainProps) {
-  const [configA, setConfigA] = useState<PlaygroundConfig>(
-    initialConfigA ?? { ...DEFAULT_PLAYGROUND_CONFIG, model: "sarvam-105b", provider: "sarvam" }
-  );
-  const [configB, setConfigB] = useState<PlaygroundConfig>(
-    initialConfigB ?? { ...DEFAULT_PLAYGROUND_CONFIG, model: "sarvam-30b", provider: "sarvam" }
-  );
+  const [configA, setConfigA] = useState<PlaygroundConfig>(() => {
+    try {
+      const saved = typeof window !== "undefined" ? localStorage.getItem("sarvam_diff_config_a") : null;
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return initialConfigA ?? { ...DEFAULT_PLAYGROUND_CONFIG, model: "sarvam-105b", provider: "sarvam" };
+  });
+  const [configB, setConfigB] = useState<PlaygroundConfig>(() => {
+    try {
+      const saved = typeof window !== "undefined" ? localStorage.getItem("sarvam_diff_config_b") : null;
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return initialConfigB ?? { ...DEFAULT_PLAYGROUND_CONFIG, model: "sarvam-30b", provider: "sarvam" };
+  });
+
+  const handleConfigAChange = (newConfig: PlaygroundConfig) => {
+    setConfigA(newConfig);
+    try {
+      localStorage.setItem("sarvam_diff_config_a", JSON.stringify(newConfig));
+    } catch {}
+  };
+
+  const handleConfigBChange = (newConfig: PlaygroundConfig) => {
+    setConfigB(newConfig);
+    try {
+      localStorage.setItem("sarvam_diff_config_b", JSON.stringify(newConfig));
+    } catch {}
+  };
   const [turns, setTurns] = useState<DiffTurn[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -287,7 +309,7 @@ export function DiffMain({
           label="Model A"
           side="A"
           config={configA}
-          onConfigChange={setConfigA}
+          onConfigChange={handleConfigAChange}
           turns={turns}
           diffMode={diffMode}
         />
@@ -295,7 +317,7 @@ export function DiffMain({
           label="Model B"
           side="B"
           config={configB}
-          onConfigChange={setConfigB}
+          onConfigChange={handleConfigBChange}
           turns={turns}
           diffMode={diffMode}
         />

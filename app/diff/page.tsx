@@ -20,9 +20,20 @@ export default function DiffViewPage() {
         const parsed = JSON.parse(saved);
         if (parsed.apiKey) setApiKey(parsed.apiKey);
       }
+      const savedDiffMode = localStorage.getItem("sarvam_diff_mode");
+      if (savedDiffMode) {
+        setDiffMode(savedDiffMode as DiffAlgorithm);
+      }
     } catch {}
     setIsLoaded(true);
   }, []);
+
+  const handleDiffModeChange = (mode: DiffAlgorithm) => {
+    setDiffMode(mode);
+    try {
+      localStorage.setItem("sarvam_diff_mode", mode);
+    } catch {}
+  };
 
   if (!isLoaded) return <div className="flex-1 bg-white h-full" />;
 
@@ -43,7 +54,7 @@ export default function DiffViewPage() {
         {/* Diff Mode Toggle */}
         <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg">
           <button
-            onClick={() => setDiffMode("none")}
+            onClick={() => handleDiffModeChange("none")}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
               diffMode === "none" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
             }`}
@@ -51,7 +62,7 @@ export default function DiffViewPage() {
             None
           </button>
           <button
-            onClick={() => setDiffMode("diff")}
+            onClick={() => handleDiffModeChange("diff")}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
               diffMode === "diff" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
             }`}

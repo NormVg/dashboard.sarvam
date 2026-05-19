@@ -10,6 +10,7 @@ import { PlaygroundConfig, StreamMetrics } from "@/types/playground";
 import { fetchOllamaModelCapabilities, OllamaCapabilities } from "@/lib/ollama-api";
 import { DiffAlgorithm, DiffOp, computeDiff } from "@/lib/diff-utils";
 import { playUISound } from "@thenormvg/web-have-sounds";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface DiffColumnProps {
   label: string;
@@ -48,7 +49,7 @@ export function DiffColumn({ label, side, config, onConfigChange, turns, diffMod
   }, [turns.length]);
 
   // Compute diffs asynchronously to avoid blocking the main thread
-  const [turnDiffs, setTurnDiffs] = useState<(ReturnType<typeof computeDiff> | null)[]>([]);
+  const [turnDiffs, setTurnDiffs] = useState<({ diffA: DiffOp[], diffB: DiffOp[] } | null)[]>([]);
   const [isComputing, setIsComputing] = useState(false);
 
   // Track whether any turn is actively streaming
@@ -65,8 +66,10 @@ export function DiffColumn({ label, side, config, onConfigChange, turns, diffMod
     let active = true;
 
     // Yield to let React show the loader
-    const timer = setTimeout(() => {
-      const results = turns.map(t => computeDiff(diffMode, t.contentA, t.contentB));
+    const timer = setTimeout(async () => {
+      const results = await Promise.all(
+        turns.map(t => computeDiff(diffMode, t.contentA, t.contentB))
+      );
       if (active) {
         setTurnDiffs(results);
         setIsComputing(false);
@@ -213,17 +216,41 @@ export function DiffColumn({ label, side, config, onConfigChange, turns, diffMod
                             <div className="relative">
                               {reasoning && <ReasoningBlock content={reasoning} isStreaming={streaming && !content} />}
                               
-                              {/* Render diff ops if available, otherwise markdown */}
-                              {isComputing ? (
-                                <div className="flex flex-col items-center justify-center py-6 text-gray-400 gap-2 bg-gray-50/50 rounded-xl border border-gray-100">
-                                  <Loader2 size={18} className="animate-spin text-gray-400" />
-                                  <span className="text-[11px] font-medium tracking-wide">Computing diff...</span>
-                                </div>
-                              ) : turnDiffs[i] && diffMode !== "none" ? (
-                                <DiffRenderer ops={side === "A" ? turnDiffs[i]!.diffA : turnDiffs[i]!.diffB} side={side} />
-                              ) : content ? (
-                                <MarkdownRenderer content={content} />
-                              ) : null}
+                              <AnimatePresence mode="wait">
+                                {isComputing ? (
+                                  <motion.div
+                                    key="computing"
+                                    initial={{ opacity: 0, y: 5 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -5 }}
+                                    transition={{ duration: 0.15 }}
+                                    className="flex flex-col items-center justify-center py-6 text-gray-400 gap-2 bg-gray-50/50 rounded-xl border border-gray-100"
+                                  >
+                                    <Loader2 size={18} className="animate-spin text-gray-400" />
+                                    <span className="text-[11px] font-medium tracking-wide">Computing diff...</span>
+                                  </motion.div>
+                                ) : turnDiffs[i] && diffMode !== "none" ? (
+                                  <motion.div
+                                    key="diff"
+                                    initial={{ opacity: 0, filter: "blur(2px)", y: 5 }}
+                                    animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
+                                    exit={{ opacity: 0, filter: "blur(2px)", y: -5 }}
+                                    transition={{ duration: 0.2, ease: "easeInOut" }}
+                                  >
+                                    <DiffRenderer ops={side === "A" ? turnDiffs[i]!.diffA : turnDiffs[i]!.diffB} side={side} />
+                                  </motion.div>
+                                ) : content ? (
+                                  <motion.div
+                                    key="markdown"
+                                    initial={{ opacity: 0, filter: "blur(2px)", y: 5 }}
+                                    animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
+                                    exit={{ opacity: 0, filter: "blur(2px)", y: -5 }}
+                                    transition={{ duration: 0.2, ease: "easeInOut" }}
+                                  >
+                                    <MarkdownRenderer content={content} />
+                                  </motion.div>
+                                ) : null}
+                              </AnimatePresence>
 
                               {error && (
                                 <div className="mt-2 text-xs text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
@@ -313,13 +340,37 @@ function DiffRenderer({ ops, side }: { ops: DiffOp[], side: "A" | "B" }) {
     <div className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed break-words bg-gray-50/50 p-4 rounded-xl border border-gray-100">
       {ops.map((op, i) => {
         if (op.type === "equal") {
-          return <span key={i} className="text-gray-700">{op.text}</span>;
+          return (
+            <span
+              key={i}
+              className="underline decoration-indigo-500/70 decoration-2 underline-offset-4 text-gray-900 font-medium"
+              title="Common Token Sequence"
+            >
+              {op.text}
+            </span>
+          );
         }
         if (side === "A" && op.type === "delete") {
-          return <span key={i} className="bg-red-100 text-red-800 line-through decoration-red-400 opacity-80">{op.text}</span>;
+          return (
+            <span
+              key={i}
+              className="bg-red-50 text-red-600 px-1 py-0.5 rounded font-normal"
+              title="Uncommon Token (Not in B)"
+            >
+              {op.text}
+            </span>
+          );
         }
         if (side === "B" && op.type === "insert") {
-          return <span key={i} className="bg-emerald-100 text-emerald-800 font-medium">{op.text}</span>;
+          return (
+            <span
+              key={i}
+              className="bg-emerald-50 text-emerald-600 px-1 py-0.5 rounded font-normal"
+              title="Uncommon Token (Not in A)"
+            >
+              {op.text}
+            </span>
+          );
         }
         return null;
       })}
