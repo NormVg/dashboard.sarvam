@@ -181,8 +181,8 @@ chatCompletionsStream();`;
   return (
     <div
       className={fullWidth
-        ? "bg-[#FAFAFA] flex flex-col h-full overflow-hidden w-full"
-        : `bg-[#FAFAFA] flex flex-col h-full overflow-hidden shrink-0 transition-[width,border-width] duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${isOpen ? "w-[340px] border-l border-gray-200" : "w-0 border-l-0"}`
+        ? "bg-[#F5F5F7] flex flex-col h-full overflow-hidden w-full"
+        : `bg-[#F5F5F7] flex flex-col h-full overflow-hidden shrink-0 transition-[width,border-width] duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${isOpen ? "w-[340px] border-l border-gray-200" : "w-0 border-l-0"}`
       }
     >
       <div

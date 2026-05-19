@@ -20,7 +20,7 @@ export function ChatThread({ messages }: { messages: ChatMessage[] }) {
             className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
               msg.role === "user"
                 ? "bg-gray-900 text-white"
-                : "bg-[#FAFAFA] border border-gray-200 text-gray-700"
+                : "bg-[#F5F5F7] border border-gray-200 text-gray-700"
             }`}
           >
             {msg.role === "user" ? (

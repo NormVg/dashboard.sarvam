@@ -1,14 +1,14 @@
 .layoutBody {
   display: flex;
   height: 100vh;
-  background-color: #FAFAFA;
+  background-color: #F5F5F7;
   font-family: var(--font-geist-sans), sans-serif;
   margin: 0;
 }
 
 .sidebar {
   flex-shrink: 0;
-  background-color: #FAFAFA;
+  background-color: #F5F5F7;
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -94,7 +94,7 @@
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  background-color: #FAFAFA;
+  background-color: #F5F5F7;
   padding-top: 0.75rem;
 }
 
