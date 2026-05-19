@@ -247,17 +247,30 @@ export async function computeCustomDiff(textA: string, textB: string): Promise<{
   return { diffA, diffB };
 }
 
+const diffCache = new Map<string, { diffA: DiffOp[], diffB: DiffOp[] }>();
+
 export async function computeDiff(algo: DiffAlgorithm, textA: string, textB: string): Promise<{ diffA: DiffOp[], diffB: DiffOp[] }> {
   if (!textA && !textB) return { diffA: [], diffB: [] };
 
+  const cacheKey = `${algo}:${textA}|||${textB}`;
+  if (diffCache.has(cacheKey)) {
+    return diffCache.get(cacheKey)!;
+  }
+
+  let result: { diffA: DiffOp[], diffB: DiffOp[] };
   switch (algo) {
     case 'diff':
-      return computeCustomDiff(textA, textB);
+      result = await computeCustomDiff(textA, textB);
+      break;
     case 'none':
     default:
-      return {
+      result = {
         diffA: [{ type: 'equal' as const, text: textA }],
         diffB: [{ type: 'equal' as const, text: textB }]
       };
+      break;
   }
+
+  diffCache.set(cacheKey, result);
+  return result;
 }
