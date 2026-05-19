@@ -4,6 +4,7 @@ import { Info, ChevronDown, Code2, RotateCcw, X, Copy, Check } from "lucide-reac
 import { PlaygroundConfig, DEFAULT_PLAYGROUND_CONFIG } from "@/types/playground";
 import { playUISound } from "@thenormvg/web-have-sounds";
 import { fetchOllamaModels, OllamaCapabilities } from "../../lib/ollama-api";
+import { motion } from "framer-motion";
 
 interface ModelSettingsProps {
   isOpen: boolean;
@@ -233,7 +234,7 @@ chatCompletionsStream();`;
           {/* Provider Selection */}
           <div>
             <label id="provider-label" className="text-[14px] font-medium text-gray-700 block mb-2">Provider</label>
-            <div className="flex bg-gray-100 p-1 rounded-xl" role="radiogroup" aria-labelledby="provider-label">
+            <div className="flex bg-gray-100 p-1 rounded-xl relative" role="radiogroup" aria-labelledby="provider-label">
               <button
                 role="radio"
                 aria-checked={config.provider === "sarvam"}
@@ -241,11 +242,18 @@ chatCompletionsStream();`;
                   playUISound("pop", "aero");
                   onChange({ ...config, provider: "sarvam", model: "sarvam-105b" });
                 }}
-                className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-all ${config.provider === "sarvam"
-                    ? "bg-white text-gray-900 shadow-sm"
+                className={`relative flex-1 py-1.5 text-sm font-medium rounded-lg transition-colors z-10 ${config.provider === "sarvam"
+                    ? "text-gray-900"
                     : "text-gray-500 hover:text-gray-700"
                   }`}
               >
+                {config.provider === "sarvam" && (
+                  <motion.span
+                    layoutId="active-provider-pill"
+                    className="absolute inset-0 bg-white rounded-lg shadow-sm -z-10"
+                    transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                  />
+                )}
                 Sarvam AI
               </button>
               <button
@@ -255,11 +263,18 @@ chatCompletionsStream();`;
                   playUISound("pop", "aero");
                   onChange({ ...config, provider: "ollama", model: ollamaModels[0] || "" });
                 }}
-                className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-all ${config.provider === "ollama"
-                    ? "bg-white text-gray-900 shadow-sm"
+                className={`relative flex-1 py-1.5 text-sm font-medium rounded-lg transition-colors z-10 ${config.provider === "ollama"
+                    ? "text-gray-900"
                     : "text-gray-500 hover:text-gray-700"
                   }`}
               >
+                {config.provider === "ollama" && (
+                  <motion.span
+                    layoutId="active-provider-pill"
+                    className="absolute inset-0 bg-white rounded-lg shadow-sm -z-10"
+                    transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                  />
+                )}
                 Local Ollama
               </button>
             </div>
@@ -403,6 +418,10 @@ chatCompletionsStream();`;
               max="2"
               step="0.1"
               value={config.temperature}
+              onMouseDown={() => playUISound("click", "aero")}
+              onMouseUp={() => playUISound("toggle", "aero")}
+              onTouchStart={() => playUISound("click", "aero")}
+              onTouchEnd={() => playUISound("toggle", "aero")}
               onChange={(e) => onChange({ ...config, temperature: parseFloat(e.target.value) })}
               className="w-full accent-gray-600 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
             />
@@ -423,6 +442,10 @@ chatCompletionsStream();`;
               max="1"
               step="0.05"
               value={config.topP}
+              onMouseDown={() => playUISound("click", "aero")}
+              onMouseUp={() => playUISound("toggle", "aero")}
+              onTouchStart={() => playUISound("click", "aero")}
+              onTouchEnd={() => playUISound("toggle", "aero")}
               onChange={(e) => onChange({ ...config, topP: parseFloat(e.target.value) })}
               className="w-full accent-gray-600 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
             />

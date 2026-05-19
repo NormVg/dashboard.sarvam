@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { PanelLeftClose, PanelLeftOpen, Code2, GitCompare } from "lucide-react";
 import { playUISound } from "@thenormvg/web-have-sounds";
 import styles from "../app/dashboard.module.css";
+import { motion } from "framer-motion";
 
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -55,13 +56,21 @@ export function Sidebar() {
             <Link 
               key={link.href}
               href={link.href}
-              className={`flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm font-medium transition-colors ${
+              onClick={() => playUISound("click", "aero")}
+              className={`relative flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm font-medium transition-colors ${
                 isActive 
-                  ? "bg-gray-100 text-gray-900" 
+                  ? "text-gray-900" 
                   : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               }`}
               title={isCollapsed ? link.label : undefined}
             >
+              {isActive && (
+                <motion.span
+                  layoutId="active-nav-indicator"
+                  className="absolute inset-0 bg-gray-100 rounded-lg -z-10"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
               <Icon size={18} className={`shrink-0 ${isActive ? "text-gray-900" : "text-gray-500"}`} />
               <span 
                 className={`overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${

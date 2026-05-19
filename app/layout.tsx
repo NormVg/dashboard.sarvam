@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
+import { PageAnimate } from "@/components/PageAnimate";
 import styles from "./dashboard.module.css";
 
 const geistSans = Geist({
@@ -32,7 +33,9 @@ export default function RootLayout({
       >
         <Sidebar />
         <main className={styles.mainWrapper}>
-          {children}
+          <PageAnimate>
+            {children}
+          </PageAnimate>
         </main>
       </body>
     </html>
